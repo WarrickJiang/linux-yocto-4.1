@@ -994,17 +994,6 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 
 	priv->phy_node = of_parse_phandle(np, "phy-handle", 0);
 
-	/* In the case of a fixed PHY, the DT node associated
-	 * to the PHY is the Ethernet MAC DT node.
-	 */
-	if (!priv->phy_node && of_phy_is_fixed_link(np)) {
-		err = of_phy_register_fixed_link(np);
-		if (err)
-			goto err_grp_init;
-
-		priv->phy_node = of_node_get(np);
-	}
-
 	/* Find the TBI PHY.  If it's not there, we don't support SGMII */
 	priv->tbi_node = of_parse_phandle(np, "tbi-handle", 0);
 
@@ -1570,8 +1559,10 @@ register_fail:
 	unmap_group_regs(priv);
 	gfar_free_rx_queues(priv);
 	gfar_free_tx_queues(priv);
-	of_node_put(priv->phy_node);
-	of_node_put(priv->tbi_node);
+	if (priv->phy_node)
+		of_node_put(priv->phy_node);
+	if (priv->tbi_node)
+		of_node_put(priv->tbi_node);
 	free_gfar_dev(priv);
 	return err;
 }
@@ -1989,6 +1980,9 @@ static int init_phy(struct net_device *dev)
 
 	priv->phydev = of_phy_connect(dev, priv->phy_node, &adjust_link, 0,
 				      interface);
+	if (!priv->phydev)
+		priv->phydev = of_phy_connect_fixed_link(dev, &adjust_link,
+							 interface);
 	if (!priv->phydev) {
 		dev_err(&dev->dev, "could not attach to PHY\n");
 		return -ENODEV;
@@ -2390,7 +2384,9 @@ int startup_gfar(struct net_device *ndev)
 	/* Start Rx/Tx DMA and enable the interrupts */
 	gfar_start(priv);
 
-	phy_start(priv->phydev);
+	/* MJ: Do not call phy_start if fixed link - tmp workaround as fixed-link did not work as is when set in dts */
+	if(priv->phydev != 0)
+		phy_start(priv->phydev);
 
 	if (test_bit(GFAR_RESETTING, &priv->state))
 		netif_device_attach(ndev);
@@ -2795,7 +2791,7 @@ static void gfar_timeout(struct net_device *dev)
 
 static void gfar_recycle_skb(struct sk_buff *skb)
 {
-	struct sk_buff_head *h = &get_cpu_var(skb_recycle_list);
+	struct sk_buff_head *h = this_cpu_ptr(&skb_recycle_list);
 	int skb_size = SKB_DATA_ALIGN(GFAR_RXB_REC_SZ + NET_SKB_PAD);
 
 	if (skb_queue_len(h) < DEFAULT_RX_RING_SIZE &&
