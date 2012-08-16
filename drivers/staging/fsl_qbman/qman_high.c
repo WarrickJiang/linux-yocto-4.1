@@ -251,33 +251,33 @@ int qman_setup_fq_lookup_table(size_t num_entries)
 }
 
 /* global structure that maintains fq object mapping */
-static DEFINE_SPINLOCK(fq_hash_table_lock);
+static DEFINE_RAW_SPINLOCK(fq_hash_table_lock);
 
 static int find_empty_fq_table_entry(u32 *entry, struct qman_fq *fq)
 {
 	u32 i;
 
-	spin_lock(&fq_hash_table_lock);
+	raw_spin_lock(&fq_hash_table_lock);
 	/* Can't use index zero because this has special meaning
 	 * in context_b field. */
 	for (i = 1; i < qman_fq_lookup_table_size; i++) {
 		if (qman_fq_lookup_table[i] == NULL) {
 			*entry = i;
 			qman_fq_lookup_table[i] = fq;
-			spin_unlock(&fq_hash_table_lock);
+			raw_spin_unlock(&fq_hash_table_lock);
 			return 0;
 		}
 	}
-	spin_unlock(&fq_hash_table_lock);
+	raw_spin_unlock(&fq_hash_table_lock);
 	return -ENOMEM;
 }
 
 static void clear_fq_table_entry(u32 entry)
 {
-	spin_lock(&fq_hash_table_lock);
+	raw_spin_lock(&fq_hash_table_lock);
 	BUG_ON(entry >= qman_fq_lookup_table_size);
 	qman_fq_lookup_table[entry] = NULL;
-	spin_unlock(&fq_hash_table_lock);
+	raw_spin_unlock(&fq_hash_table_lock);
 }
 
 static inline struct qman_fq *get_fq_table_entry(u32 entry)
