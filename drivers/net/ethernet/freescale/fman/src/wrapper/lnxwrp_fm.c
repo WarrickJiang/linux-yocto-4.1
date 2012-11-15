@@ -1166,7 +1166,11 @@ static struct platform_driver fm_driver = {
 	.pm		= FM_PM_OPS,
     },
     .probe          = fm_probe,
+#if defined(CONFIG_KEXEC)
+    .shutdown       = fm_remove,
+#endif
     .remove         = fm_remove
+
 };
 
 t_Handle LNXWRP_FM_Init(void)
