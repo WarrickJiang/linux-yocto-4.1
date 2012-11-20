@@ -50,6 +50,8 @@ static int tb_valid;
 static u32 cur_booting_core;
 static bool rcpmv2;
 
+extern void fsl_enable_threads(void);
+
 #ifdef CONFIG_PPC_E500MC
 /* get a physical mask of online cores and booting core */
 static inline u32 get_phy_cpu_mask(void)
@@ -193,6 +195,19 @@ static void __cpuinit mpc85xx_take_timebase(void)
 
 #ifdef CONFIG_HOTPLUG_CPU
 #ifdef CONFIG_PPC_E500MC
+static inline bool is_core_down(unsigned int thread)
+{
+	cpumask_t thd_mask;
+
+	if (!smt_capable())
+		return true;
+
+	cpumask_shift_left(&thd_mask, &threads_core_mask,
+			cpu_core_index_of_thread(thread) * threads_per_core);
+
+	return !cpumask_intersects(&thd_mask, cpu_online_mask);
+}
+
 static void __cpuinit smp_85xx_mach_cpu_die(void)
 {
 	unsigned int cpu = smp_processor_id();
@@ -203,8 +218,11 @@ static void __cpuinit smp_85xx_mach_cpu_die(void)
 
 	mtspr(SPRN_TCR, 0);
 
-	__flush_disable_L1();
-	disable_backside_L2_cache();
+	if (is_core_down(cpu))
+		__flush_disable_L1();
+
+	if (cur_cpu_spec->l2cache_type == PPC_L2_CACHE_CORE)
+		disable_backside_L2_cache();
 
 	generic_set_cpu_dead(cpu);
 
@@ -215,10 +233,17 @@ static void __cpuinit smp_85xx_mach_cpu_die(void)
 void platform_cpu_die(unsigned int cpu)
 {
 	unsigned int hw_cpu = get_hard_smp_processor_id(cpu);
-	struct ccsr_rcpm __iomem *rcpm = guts_regs;
+	struct ccsr_rcpm __iomem *rcpm;
 
-	/* Core Nap Operation */
-	setbits32(&rcpm->cnapcr, 1 << hw_cpu);
+	if (rcpmv2 && is_core_down(cpu)) {
+		/* enter PH20 status */
+		setbits32(&((struct ccsr_rcpm_v2 *)guts_regs)->pcph20setr,
+				1 << cpu_core_index_of_thread(hw_cpu));
+	} else if (!rcpmv2) {
+		rcpm = guts_regs;
+		/* Core Nap Operation */
+		setbits32(&rcpm->cnapcr, 1 << hw_cpu);
+	}
 }
 #else
 /* for e500v1 and e500v2 */
@@ -294,6 +319,7 @@ static int smp_85xx_kick_cpu(int nr)
 	int ret = 0;
 #ifdef CONFIG_PPC_E500MC
 	struct ccsr_rcpm __iomem *rcpm = guts_regs;
+	struct ccsr_rcpm_v2 __iomem *rcpm_v2 = guts_regs;
 #endif
 
 	WARN_ON(nr < 0 || nr >= NR_CPUS);
@@ -364,11 +390,12 @@ static int smp_85xx_kick_cpu(int nr)
 		flush_spin_table(spin_table);
 
 #ifdef CONFIG_PPC_E500MC
-		/*
-		 * Due to an erratum of core warm reset, clear NAP bits
-		 * in the CNAPCR register by hand prior to reset.
-		 */
-		clrbits32(&rcpm->cnapcr, 1 << hw_cpu);
+		/* Due to an erratum, wake the core before reset. */
+		if (rcpmv2)
+			setbits32(&rcpm_v2->pcph20clrr,
+				1 << cpu_core_index_of_thread(hw_cpu));
+		else
+			clrbits32(&rcpm->cnapcr, 1 << hw_cpu);
 #endif
 
 		/*
