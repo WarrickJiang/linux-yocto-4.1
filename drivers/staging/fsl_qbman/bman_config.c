@@ -219,6 +219,18 @@ static void bm_set_pool(struct bman *bm, u8 pool, u32 swdet, u32 swdxt,
 	bm_out(POOL_HWDXT(pool), __generate_thresh(hwdxt, 1));
 }
 
+#ifdef CONFIG_CRASH_DUMP
+static int bm_is_initalized(struct bman *bm)
+{
+	return bm_in(FBPR_BAR);
+}
+#else
+static int bm_is_initalized(struct bman *bm)
+{
+	return 0;
+}
+#endif
+
 static void bm_set_memory(struct bman *bm, u64 ba, int prio, u32 size)
 {
 	u32 exp = ilog2(size);
@@ -227,9 +239,11 @@ static void bm_set_memory(struct bman *bm, u64 ba, int prio, u32 size)
 			is_power_of_2(size));
 	/* choke if '[e]ba' has lower-alignment than 'size' */
 	DPA_ASSERT(!(ba & (size - 1)));
-	bm_out(FBPR_BARE, upper_32_bits(ba));
-	bm_out(FBPR_BAR, lower_32_bits(ba));
-	bm_out(FBPR_AR, (prio ? 0x40000000 : 0) | (exp - 1));
+	if (!bm_is_initalized(bm)) {
+		bm_out(FBPR_BARE, upper_32_bits(ba));
+		bm_out(FBPR_BAR, lower_32_bits(ba));
+		bm_out(FBPR_AR, (prio ? 0x40000000 : 0) | (exp - 1));
+	}
 }
 
 /*****************/
@@ -320,15 +334,17 @@ static int __init fsl_bman_init(struct device_node *node)
 	s = of_get_property(node, "fsl,hv-claimable", &ret);
 	if (s && !strcmp(s, "standby"))
 		standby = 1;
+	regs = ioremap(res.start, res.end - res.start + 1);
+	bm = bm_create(regs);
+	BUG_ON(!bm);
+	if (bm_is_initalized(bm))
+		standby = 1;
 	if (!standby) {
 		ret = parse_mem_property(node, "fsl,bman-fbpr",
 					&fbpr_a, &fbpr_sz, 0);
 		BUG_ON(ret);
 	}
 	/* Global configuration */
-	regs = ioremap(res.start, res.end - res.start + 1);
-	bm = bm_create(regs);
-	BUG_ON(!bm);
 	bm_node = node;
 	bm_get_version(bm, &id, &major, &minor);
 	pr_info("Bman ver:%04x,%02x,%02x\n", id, major, minor);
