@@ -224,10 +224,28 @@ static int bm_is_initalized(struct bman *bm)
 {
 	return bm_in(FBPR_BAR);
 }
+static void bm_reserve_memory(struct bman *bm)
+{
+	u64 upper_ba = 0;
+	u32 lower_ba = 0;
+	u64 addr = 0;
+	u32 exp = 0;
+	u32 size = 0;
+
+	upper_ba = bm_in(FBPR_BARE);
+	lower_ba = bm_in(FBPR_BAR);
+	exp = (bm_in(FBPR_AR) & 0x3f);
+	size = 2 << exp;
+	addr = (u64)((upper_ba << 31) | lower_ba);
+	memblock_reserve(addr, size);
+}
 #else
 static int bm_is_initalized(struct bman *bm)
 {
 	return 0;
+}
+static void bm_reserve_memory(struct bman *bm)
+{
 }
 #endif
 
@@ -360,6 +378,11 @@ static int __init fsl_bman_init(struct device_node *node)
 	} else {
 		pr_warn("unknown Bman version, default to rev1.0\n");
 	}
+
+	/* Unfortunately we have to reserve those memory used for Bman
+	 * since currently we can't clean these usage from boot kernel.
+	 */
+	bm_reserve_memory(bm);
 
 	if (standby) {
 		pr_info("  -> in standby mode\n");
