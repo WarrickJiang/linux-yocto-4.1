@@ -351,6 +351,19 @@ static void qm_get_version(struct qman *qm, u16 *id, u8 *major, u8 *minor,
 	*cfg = v2 & 0xff;
 }
 
+#ifdef CONFIG_CRASH_DUMP
+static int qm_is_initalized(struct qman *qm, enum qm_memory memory)
+{
+	u32 offset = (memory == qm_memory_fqd) ? REG_FQD_BARE : REG_PFDR_BARE;
+	return __qm_in(qm, offset + REG_offset_BAR);
+}
+#else
+static int qm_is_initalized(struct qman *qm, enum qm_memory memory)
+{
+	return 0;
+}
+#endif
+
 static void qm_set_memory(struct qman *qm, enum qm_memory memory, u64 ba,
 			int enable, int prio, int stash, u32 size)
 {
@@ -361,13 +374,15 @@ static void qm_set_memory(struct qman *qm, enum qm_memory memory, u64 ba,
 			is_power_of_2(size));
 	/* choke if 'ba' has lower-alignment than 'size' */
 	DPA_ASSERT(!(ba & (size - 1)));
-	__qm_out(qm, offset, upper_32_bits(ba));
-	__qm_out(qm, offset + REG_offset_BAR, lower_32_bits(ba));
-	__qm_out(qm, offset + REG_offset_AR,
-		(enable ? 0x80000000 : 0) |
-		(prio ? 0x40000000 : 0) |
-		(stash ? 0x20000000 : 0) |
-		(exp - 1));
+	if (!qm_is_initalized(qm, memory)) {
+		__qm_out(qm, offset, upper_32_bits(ba));
+		__qm_out(qm, offset + REG_offset_BAR, lower_32_bits(ba));
+		__qm_out(qm, offset + REG_offset_AR,
+			(enable ? 0x80000000 : 0) |
+			(prio ? 0x40000000 : 0) |
+			(stash ? 0x20000000 : 0) |
+			(exp - 1));
+	}
 }
 
 static void qm_set_pfdr_threshold(struct qman *qm, u32 th, u8 k)
@@ -503,17 +518,21 @@ static int __init fsl_qman_init(struct device_node *node)
 	s = of_get_property(node, "fsl,hv-claimable", &ret);
 	if (s && !strcmp(s, "standby"))
 		standby = 1;
-	if (!standby) {
-		ret = parse_mem_property(node, "fsl,qman-fqd",
-					&fqd_a, &fqd_sz, 1);
-		BUG_ON(ret);
-		ret = parse_mem_property(node, "fsl,qman-pfdr",
-					&pfdr_a, &pfdr_sz, 0);
-		BUG_ON(ret);
-	}
-	/* Global configuration */
 	regs = ioremap(res.start, res.end - res.start + 1);
 	qm = qm_create(regs);
+	if (!standby) {
+		if (!qm_is_initalized(qm, qm_memory_fqd)) {
+			ret = parse_mem_property(node, "fsl,qman-fqd",
+						&fqd_a, &fqd_sz, 1);
+			BUG_ON(ret);
+		}
+		if (!qm_is_initalized(qm, qm_memory_pfdr)) {
+			ret = parse_mem_property(node, "fsl,qman-pfdr",
+						&pfdr_a, &pfdr_sz, 0);
+			BUG_ON(ret);
+		}
+	}
+	/* Global configuration */
 	qm_node = node;
 	qm_get_version(qm, &id, &major, &minor, &cfg);
 	pr_info("Qman ver:%04x,%02x,%02x,%02x\n", id, major, minor, cfg);
