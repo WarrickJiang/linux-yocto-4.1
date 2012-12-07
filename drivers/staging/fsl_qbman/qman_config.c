@@ -357,10 +357,30 @@ static int qm_is_initalized(struct qman *qm, enum qm_memory memory)
 	u32 offset = (memory == qm_memory_fqd) ? REG_FQD_BARE : REG_PFDR_BARE;
 	return __qm_in(qm, offset + REG_offset_BAR);
 }
+static void qm_reserve_memory(struct qman *qm, enum qm_memory memory)
+{
+	u64 upper_ba = 0;
+	u32 lower_ba = 0;
+	u64 addr = 0;
+	u32 exp = 0;
+	u32 size = 0;
+	u32 unknown_hole_size = 0;
+	u32 offset = (memory == qm_memory_fqd) ? REG_FQD_BARE : REG_PFDR_BARE;
+
+	upper_ba = __qm_in(qm, offset);
+	lower_ba = __qm_in(qm, offset + REG_offset_BAR);
+	exp = (__qm_in(qm, offset + REG_offset_AR) & 0x3f);
+	size = 2 << exp;
+	addr = (u64)((upper_ba << 31) | lower_ba);
+	memblock_reserve(addr, size);
+}
 #else
 static int qm_is_initalized(struct qman *qm, enum qm_memory memory)
 {
 	return 0;
+}
+static void qm_reserve_memory(struct qman *qm, enum qm_memory memory)
+{
 }
 #endif
 
@@ -557,6 +577,14 @@ static int __init fsl_qman_init(struct device_node *node)
 		}
 		qman_ip_cfg = cfg;
 	}
+
+	/* Unfortunately we have to reserve those memory used for Qman
+	 * since currently we can't clean these usage from boot kernel.
+	 */
+	/* FQD memory */
+	qm_reserve_memory(qm, qm_memory_fqd);
+	/* PFDR memory */
+	qm_reserve_memory(qm, qm_memory_pfdr);
 
 	if (standby) {
 		pr_info("  -> in standby mode\n");
