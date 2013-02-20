@@ -661,6 +661,7 @@ static int mpc85xx_l2_err_remove(struct platform_device *op)
 
 	if (edac_op_state == EDAC_OPSTATE_INT) {
 		out_be32(pdata->l2_vbase + MPC85XX_L2_ERRINTEN, 0);
+		devm_free_irq(&op->dev, pdata->irq, edac_dev);
 		irq_dispose_mapping(pdata->irq);
 	}
 
@@ -1152,6 +1153,7 @@ static int mpc85xx_mc_err_remove(struct platform_device *op)
 
 	if (edac_op_state == EDAC_OPSTATE_INT) {
 		out_be32(pdata->mc_vbase + MPC85XX_MC_ERR_INT_EN, 0);
+		devm_free_irq(&op->dev, pdata->irq, mci);
 		irq_dispose_mapping(pdata->irq);
 	}
 
