@@ -296,6 +296,7 @@ static int smp_85xx_kick_cpu(int nr)
 	int ret = 0;
 #ifdef CONFIG_PPC64
 	unsigned long *ptr = NULL;
+	static int secondary_cpus_released;
 #endif
 
 	WARN_ON(nr < 0 || nr >= NR_CPUS);
@@ -412,10 +413,16 @@ static int smp_85xx_kick_cpu(int nr)
 #else
 	ptr  = (unsigned long *)((unsigned long)&__run_at_kexec);
 	/* We shouldn't access spin_table from the bootloader to up any
-	 * secondary cpu for kexec kernel, and kexec kernel already
-	 * know how to jump to generic_secondary_smp_init.
+	 * secondary cpu for kexec kernel, all secondary cpus are spinning
+	 * on a common spinloop. So we should release them by invoking
+	 * smp_release_cpus
 	*/
-	if (!*ptr) {
+	if (*ptr) {
+		if (!secondary_cpus_released) {
+			smp_release_cpus();
+			secondary_cpus_released = 1;
+		}
+	} else {
 		flush_spin_table(spin_table);
 		out_be32(&spin_table->pir, hw_cpu);
 		out_be32(&spin_table->addr_h,
