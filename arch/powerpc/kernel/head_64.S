@@ -185,11 +185,15 @@ exception_marker:
 #endif
 
 #ifdef CONFIG_PPC_BOOK3E
+/*
+ * In kexec boot, r3 = this processor's number (physical cpu id).
+ * For normal boot, we have to tweak the PIR to get the physical cpu id.
+*/
 _GLOBAL(fsl_secondary_thread_init)
 	/* Enable branch prediction */
-	lis     r3,BUCSR_INIT@h
-	ori     r3,r3,BUCSR_INIT@l
-	mtspr   SPRN_BUCSR,r3
+	lis     r4,BUCSR_INIT@h
+	ori     r4,r4,BUCSR_INIT@l
+	mtspr   SPRN_BUCSR,r4
 	isync
 
 	/*
@@ -201,9 +205,18 @@ _GLOBAL(fsl_secondary_thread_init)
 	 * but the low bit right by two bits so that the cpu numbering is
 	 * continuous.
 	 */
-	mfspr	r3, SPRN_PIR
-	rlwimi	r3, r3, 30, 2, 30
-	mtspr	SPRN_PIR, r3
+#if defined(CONFIG_KEXEC) || defined(CONFIG_CRASH_DUMP)
+	bl	.relative_toc
+	LOAD_REG_ADDR(r4, __run_at_kexec)
+	ld	r4,0(r4)
+	cmpdi	r4,0
+	bne	1f
+#endif
+	mfspr	r4, SPRN_PIR
+	rlwimi	r4, r4, 30, 2, 30
+	mtspr	SPRN_PIR, r4
+	mr	r3,r4
+1:
 #endif
 
 _GLOBAL(generic_secondary_thread_init)
