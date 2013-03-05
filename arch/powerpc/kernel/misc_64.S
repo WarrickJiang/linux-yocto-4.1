@@ -467,8 +467,20 @@ _GLOBAL(scom970_write)
  * Physical (hardware) cpu id should be in r3.
  */
 _GLOBAL(kexec_wait)
-	bl	1f
-1:	mflr	r5
+#ifdef CONFIG_PPC_BOOK3E
+BEGIN_FTR_SECTION
+	/* Disable all the secondary threads */
+	andi.	r4,r3,1
+	beq	1f
+	li	r4,2
+	mtspr	SPRN_TENC,r4
+	b	$
+1:
+END_FTR_SECTION_IFSET(CPU_FTR_SMT)
+#endif
+
+	bl	2f
+2:	mflr	r5
 	addi	r5,r5,kexec_flag-1b
 
 99:	HMT_LOW
