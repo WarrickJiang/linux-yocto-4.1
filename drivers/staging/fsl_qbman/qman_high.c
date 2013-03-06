@@ -407,6 +407,25 @@ struct dev_pm_domain qman_portal_device_pm_domain = {
 	}
 };
 
+#if defined(CONFIG_KEXEC) || defined(CONFIG_CRASH_DUMP)
+static int qm_drain_dqrr(struct qm_portal *p)
+{
+	const struct qm_dqrr_entry *dq;
+	while (1) {
+		qm_dqrr_pvb_update(p);
+		dq = qm_dqrr_current(p);
+		if (!dq)
+			break;
+		qm_dqrr_cdc_consume_1ptr(p, dq, 0);
+		qm_dqrr_next(p);
+	}
+	qm_isr_status_clear(p, 0xffffffff);
+	return 0;
+}
+#else
+static inline int qm_drain_dqrr(struct qm_portal *p) { return 1; }
+#endif
+
 struct qman_portal *qman_create_portal(
 			struct qman_portal *portal,
 			const struct qm_portal_config *config,
