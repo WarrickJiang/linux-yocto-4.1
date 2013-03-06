@@ -372,7 +372,7 @@ static void qm_reserve_memory(struct qman *qm, enum qm_memory memory)
 	lower_ba = __qm_in(qm, offset + REG_offset_BAR);
 	exp = (__qm_in(qm, offset + REG_offset_AR) & 0x3f);
 	size = 2 << exp;
-	addr = (u64)((upper_ba << 31) | lower_ba);
+	addr = (u64)((upper_ba << 32) | lower_ba);
 	ret = memblock_reserve(addr, size);
 	WARN_ON(ret);
 }

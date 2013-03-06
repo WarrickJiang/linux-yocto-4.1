@@ -240,7 +240,7 @@ static void bm_reserve_memory(struct bman *bm)
 	lower_ba = bm_in(FBPR_BAR);
 	exp = (bm_in(FBPR_AR) & 0x3f);
 	size = 2 << exp;
-	addr = (u64)((upper_ba << 31) | lower_ba);
+	addr = (u64)((upper_ba << 32) | lower_ba);
 	ret = memblock_reserve(addr, size);
 	WARN_ON(ret);
 }
