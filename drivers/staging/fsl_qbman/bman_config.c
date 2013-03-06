@@ -222,7 +222,7 @@ static void bm_set_pool(struct bman *bm, u8 pool, u32 swdet, u32 swdxt,
 	bm_out(POOL_HWDXT(pool), __generate_thresh(hwdxt, 1));
 }
 
-#ifdef CONFIG_CRASH_DUMP
+#if defined(CONFIG_KEXEC) || defined(CONFIG_CRASH_DUMP)
 static int bm_is_initalized(struct bman *bm)
 {
 	return bm_in(FBPR_BAR);
@@ -234,13 +234,15 @@ static void bm_reserve_memory(struct bman *bm)
 	u64 addr = 0;
 	u32 exp = 0;
 	u32 size = 0;
+	int ret;
 
 	upper_ba = bm_in(FBPR_BARE);
 	lower_ba = bm_in(FBPR_BAR);
 	exp = (bm_in(FBPR_AR) & 0x3f);
 	size = 2 << exp;
 	addr = (u64)((upper_ba << 31) | lower_ba);
-	memblock_reserve(addr, size);
+	ret = memblock_reserve(addr, size);
+	WARN_ON(ret);
 }
 #else
 static int bm_is_initalized(struct bman *bm)

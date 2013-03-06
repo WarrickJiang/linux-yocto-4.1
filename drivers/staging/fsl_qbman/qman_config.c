@@ -351,7 +351,7 @@ static void qm_get_version(struct qman *qm, u16 *id, u8 *major, u8 *minor,
 	*cfg = v2 & 0xff;
 }
 
-#ifdef CONFIG_CRASH_DUMP
+#if defined(CONFIG_KEXEC) || defined(CONFIG_CRASH_DUMP)
 static int qm_is_initalized(struct qman *qm, enum qm_memory memory)
 {
 	u32 offset = (memory == qm_memory_fqd) ? REG_FQD_BARE : REG_PFDR_BARE;
@@ -366,13 +366,15 @@ static void qm_reserve_memory(struct qman *qm, enum qm_memory memory)
 	u32 size = 0;
 	u32 unknown_hole_size = 0;
 	u32 offset = (memory == qm_memory_fqd) ? REG_FQD_BARE : REG_PFDR_BARE;
+	int ret;
 
 	upper_ba = __qm_in(qm, offset);
 	lower_ba = __qm_in(qm, offset + REG_offset_BAR);
 	exp = (__qm_in(qm, offset + REG_offset_AR) & 0x3f);
 	size = 2 << exp;
 	addr = (u64)((upper_ba << 31) | lower_ba);
-	memblock_reserve(addr, size);
+	ret = memblock_reserve(addr, size);
+	WARN_ON(ret);
 }
 #else
 static int qm_is_initalized(struct qman *qm, enum qm_memory memory)
