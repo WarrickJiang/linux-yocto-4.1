@@ -1641,7 +1641,7 @@ BEGIN_FTR_SECTION
 	 * Set the NIA for the secondary thread to
 	 * generic_secondary_thread_init
 	 */
-	LOAD_REG_IMMEDIATE(r3, .fsl_secondary_thread_init);
+	LOAD_REG_ADDR(r3, .fsl_secondary_thread_init);
 	MTTMR(TMRN_INIA1, 3);
 
 	/* Release the other thread. It will spin until kick_cpu is called */
