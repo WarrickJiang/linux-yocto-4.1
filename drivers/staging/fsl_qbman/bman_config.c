@@ -31,6 +31,9 @@
 
 #include <asm/cacheflush.h>
 #include "bman_private.h"
+#ifdef CONFIG_KEXEC
+#include <linux/kexec.h>
+#endif
 
 /* Last updated for v00.79 of the BG */
 
@@ -406,6 +409,72 @@ int bm_pool_set(u32 bpid, const u32 *thresholds)
 }
 EXPORT_SYMBOL(bm_pool_set);
 
+#ifdef CONFIG_KEXEC
+static void bman_drain_one_pool(u32 bpid)
+{
+	struct bman_pool_params params;
+	struct bman_pool *pool;
+	struct bm_buffer bufs[8];
+	struct bm_pool_state state;
+	int ret;
+
+	ret = bman_query_pools(&state);
+	if (ret) {
+		pr_err("Query pool state failed\n");
+		return;
+	}
+
+	/* Check if there are free buffers in this pool */
+	if (bman_depletion_get(&state.as.state, bpid))
+		return;
+
+	memset(&params, 0, sizeof(params));
+	params.bpid = bpid;
+	pool = bman_new_pool(&params);
+	if (!pool) {
+		pr_err("Create bman pool for %d failed\n", bpid);
+		return;
+	}
+
+	ret = 0;
+	do {
+		/* Acquire is all-or-nothing, so we drain in 8s, then in
+		 * 1s for the remainder. */
+		if (ret != 1)
+			ret = bman_acquire(pool, bufs, 8, 0);
+		if (ret < 8)
+			ret = bman_acquire(pool, bufs, 1, 0);
+	} while (ret > 0);
+	return;
+}
+
+void bman_crash_shutdown(void)
+{
+	struct device_node *dn;
+	int ret;
+	u32 *range, base, count, i;
+
+	for_each_compatible_node(dn, NULL, "fsl,bpid-range") {
+		range = (u32 *)of_get_property(dn, "fsl,bpid-range", &ret);
+		if (!range) {
+			pr_err("No 'fsl,bpid-range' property in node %s\n",
+				dn->full_name);
+			continue;
+		}
+		if (ret != 8) {
+			pr_err("'fsl,bpid-range' is not a 2-cell range in node %s\n",
+				dn->full_name);
+			continue;
+		}
+		base = range[0];
+		count = range[1];
+
+		for (i = 0; i < count; i++)
+			bman_drain_one_pool(base + i);
+	}
+}
+#endif
+
 __init void bman_init_early(void)
 {
 	struct device_node *dn;
@@ -423,6 +492,9 @@ __init void bman_init_early(void)
 			BUG_ON(ret);
 		}
 	}
+#ifdef CONFIG_KEXEC
+	crash_shutdown_register(&bman_crash_shutdown);
+#endif
 }
 
 static void log_edata_bits(u32 bit_count)
