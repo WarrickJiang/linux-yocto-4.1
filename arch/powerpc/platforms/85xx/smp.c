@@ -577,8 +577,8 @@ static void mpc85xx_smp_machine_kexec(struct kimage *image)
 	}
 #endif
 
-	if (cpu_has_feature(CPU_FTR_SMT))
-		set_cpus_allowed_ptr(current, cpumask_of(boot_cpuid));
+	if (cpu_has_feature(CPU_FTR_SMT) && (crashing_cpu == -1))
+			set_cpus_allowed_ptr(current, cpumask_of(boot_cpuid));
 
 	default_machine_kexec(image);
 }

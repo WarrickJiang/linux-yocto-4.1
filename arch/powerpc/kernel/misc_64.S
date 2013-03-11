@@ -469,7 +469,28 @@ _GLOBAL(scom970_write)
 _GLOBAL(kexec_wait)
 #ifdef CONFIG_PPC_BOOK3E
 BEGIN_FTR_SECTION
-	/* Disable all the secondary threads */
+	/* Disable all the secondary threads. In kdump boot, we will
+	 * disable the thread0 if there is a panic on thread1 */
+#ifdef CONFIG_KEXEC
+	LOAD_REG_ADDR(r4,crashing_cpu)
+	lwz	r4,0(r4)
+	cmpwi	0,r4,-1
+	beq	10f
+	lhz	r5,PACAPACAINDEX(r13)
+	LOAD_REG_ADDR(r6,threads_per_core)
+	lwz	r6,0(r6)
+	addi	r6,r6,-1
+	andc	r4,r4,r6
+	andc	r5,r5,r6
+	cmpw	r4,r5
+	bne	10f
+	mfspr	r4,SPRN_TIR
+	li	r5,1
+	sld	r4,r5,r4
+	mtspr	SPRN_TENC,r4
+	b	$
+10:
+#endif
 	andi.	r4,r3,1
 	beq	1f
 	li	r4,2

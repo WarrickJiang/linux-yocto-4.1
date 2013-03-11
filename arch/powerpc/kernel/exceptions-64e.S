@@ -1624,29 +1624,42 @@ BEGIN_FTR_SECTION
 	cmpi 0,r3,2
 	blt 2f
 
-	/* Disable the other thread */
+	/* Disable the other thread. In kdump boot, we may need to enable
+	 * thread0 here if the thread1 is the boot cpu. */
+#ifdef CONFIG_CRASH_DUMP
+	mfspr	r3,SPRN_TIR
+	cmpwi	0,r3,0
+	li	r3,1
+	bne	10f
+#endif
 	li	r3,2
-	mtspr	SPRN_TENC,r3
+10:	mtspr	SPRN_TENC,r3
 
-1:	mfspr	r3,SPRN_TENSR
-	andi.	r3,r3,2
+1:	mfspr	r4,SPRN_TENSR
+	and.	r4,r4,r3
 	bne	1b
 
 #ifndef CONFIG_PPC_DISABLE_THREADS
 	/* Configure the MSR per the default */
-	LOAD_REG_IMMEDIATE(r3, MSR_KERNEL);
-	MTTMR(TMRN_IMSR1, 3);
+	LOAD_REG_IMMEDIATE(r4, MSR_KERNEL);
 
 	/*
 	 * Set the NIA for the secondary thread to
 	 * generic_secondary_thread_init
 	 */
-	LOAD_REG_ADDR(r3, .fsl_secondary_thread_init);
-	MTTMR(TMRN_INIA1, 3);
+	LOAD_REG_ADDR(r5, .fsl_secondary_thread_init);
+
+	cmpwi	0,r3,1
+	beq	20f
+	MTTMR(TMRN_IMSR1, 4);
+	MTTMR(TMRN_INIA1, 5);
+	b	30f
+
+20:	MTTMR(TMRN_IMSR0, 4);
+	MTTMR(TMRN_INIA0, 5);
 
 	/* Release the other thread. It will spin until kick_cpu is called */
-	li	r3, 2
-	mtspr	SPRN_TENS, r3
+30: mtspr	SPRN_TENS, r3
 #endif
 END_FTR_SECTION_IFSET(CPU_FTR_SMT)
 2:	blr
