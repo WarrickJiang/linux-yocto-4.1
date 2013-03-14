@@ -742,6 +742,7 @@
 #define MMUBE1_VBE4		0x00000002
 #define MMUBE1_VBE5		0x00000001
 
+#define TMRN_TMCFG0	0x010	/* Thread Management Configuration Register 0 */
 #define TMRN_IMSR0	0x120	/* Initial MSR Register 0 (e6500) */
 #define TMRN_IMSR1	0x121	/* Initial MSR Register 1 (e6500) */
 #define TMRN_INIA0	0x140	/* Next Instruction Address Register 0 */
