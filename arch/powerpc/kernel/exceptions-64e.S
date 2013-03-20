@@ -1640,6 +1640,30 @@ BEGIN_FTR_SECTION
 	bne	1b
 
 #ifndef CONFIG_PPC_DISABLE_THREADS
+	/*
+	 * Get the cpu id of the thread0 and write this value to
+	 * __thread0_cpu_id.
+	 */
+	mfspr	r4,SPRN_PIR	/* The current thread physical id */
+	LOAD_REG_ADDR(r8, paca)	/* Get the current paca */
+	ld	r8,0(r8)
+	li	r5,0
+	LOAD_REG_ADDR(r7, nr_cpu_ids)
+	lwz	r7,0(r7)
+11:	lhz	r6,PACAHWCPUID(r8)
+	cmpw	r6,r4
+	beq	12f
+	addi	r8,r8,PACA_SIZE
+	addi	r5,r5,1
+	cmpw	r5,r7
+	blt	11b
+	b	.		/* Spin here if we can't find a matched paca. */
+
+12:	lhz	r4,PACAPACAINDEX(r8)
+	rlwinm	r4,r4,0,0,30	/* Get the thread0 cpu id. */
+	LOAD_REG_ADDR(r5, __thread0_cpu_id)
+	std	r4,0(r5)
+
 	/* Configure the MSR per the default */
 	LOAD_REG_IMMEDIATE(r4, MSR_KERNEL);
 

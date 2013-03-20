@@ -95,6 +95,15 @@ __secondary_hold_acknowledge:
 __run_at_kexec:
 	.llong	0x0	/* Flag for the secondary kernel from kexec. */
 
+	/*
+	 * The first thread will write this value with the logical id of
+	 * the thread0 and the secondary thread will calculate his logical
+	 * id based on this and the value in TIR register.
+	 */
+	.global __thread0_cpu_id
+__thread0_cpu_id:
+	.llong 0x0
+
 #ifdef CONFIG_RELOCATABLE
 	/* This flag is set to 1 by a loader if the kernel should run
 	 * at the loaded address instead of the linked address.  This
@@ -205,17 +214,34 @@ _GLOBAL(fsl_secondary_thread_init)
 	 * but the low bit right by two bits so that the cpu numbering is
 	 * continuous.
 	 */
-#if defined(CONFIG_KEXEC) || defined(CONFIG_CRASH_DUMP)
 	bl	.relative_toc
+#if defined(CONFIG_KEXEC) || defined(CONFIG_CRASH_DUMP)
 	LOAD_REG_ADDR(r4, __run_at_kexec)
 	ld	r4,0(r4)
 	cmpdi	r4,0
 	bne	1f
 #endif
-	mfspr	r4, SPRN_PIR
-	rlwimi	r4, r4, 30, 2, 30
-	mtspr	SPRN_PIR, r4
-	mr	r3,r4
+	/*
+	 * Get the cpu physical id, we can't use this method for kexec/kdump
+	 * because all the sencondary cores will run fsl_enable_threads
+	 * concurrently in kexec/kdump boot.
+	 */
+	LOAD_REG_ADDR(r3, __thread0_cpu_id)
+	ld	r3,0(r3)
+	mfspr	r4,SPRN_TIR	/* The thread0 cpu id plus TIR is the */
+	add	r3,r3,r4	/* logical id of the current thread. */
+	LOAD_REG_ADDR(r4, nr_cpu_ids)
+	lwz	r4,0(r4)
+	cmpld	r3,r4
+	bge	.
+
+	LOAD_REG_ADDR(r4, paca)
+	ld	r4,0(r4)
+	mulli	r3,r3,PACA_SIZE
+	add	r4,r4,r3
+	lhz	r3,PACAHWCPUID(r4)
+
+	mtspr	SPRN_PIR, r3
 1:
 #endif
 
