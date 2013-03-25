@@ -221,6 +221,13 @@ static void __cpuinit smp_85xx_mach_cpu_die(void)
 	if (is_core_down(cpu))
 		qoriq_pm_ops->cpu_enter_state(cpu, qoriq_cpu_die_state);
 
+	if (cpu_has_feature(CPU_FTR_SMT)) {
+		cpu = cpu_thread_in_core(cpu);
+		cpu = 1 << cpu;
+		mb();
+		mtspr(SPRN_TENC, cpu);
+	}
+
 	while (1)
 		;
 }
