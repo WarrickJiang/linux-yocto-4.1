@@ -1343,12 +1343,14 @@ int dpa_fq_init(struct dpa_fq *dpa_fq, bool td_enable)
 		};
 
 		_errno = qman_init_fq(fq, QMAN_INITFQ_FLAG_SCHED, &initfq);
+#ifndef CONFIG_CRASH_DUMP
 		if (_errno < 0) {
 			dev_err(dev, "qman_init_fq(%u) = %d\n",
 					qman_fq_fqid(fq), _errno);
 			qman_destroy_fq(fq, 0);
 			return _errno;
 		}
+#endif
 	}
 
 	dpa_fq->fqid = qman_fq_fqid(fq);
