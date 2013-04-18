@@ -436,6 +436,7 @@
 			#size-cells = <0>;
 
 			phy11: ethernet-phy@0 {
+				compatible = "ethernet-phy-ieee802.3-c45";
 				reg = <0x0>;
 			};
 		};
@@ -446,6 +447,7 @@
 			#size-cells = <0>;
 
 			phy10: ethernet-phy@4 {
+				compatible = "ethernet-phy-ieee802.3-c45";
 				reg = <0x4>;
 			};
 		};
