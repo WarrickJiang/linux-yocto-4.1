@@ -41,6 +41,8 @@ static const struct of_device_id mpc85xx_common_ids[] __initconst = {
 	{ .compatible = "fsl,qoriq-pcie-v2.3", },
 	{ .compatible = "fsl,qoriq-pcie-v2.2", },
 	{ .compatible = "fsl,fman", },
+	/* For the FMan driver */
+	{ .compatible = "fsl,dpaa", },
 	{},
 };
 
