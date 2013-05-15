@@ -1039,6 +1039,7 @@ static int dpa_set_mac_address(struct net_device *net_dev, void *addr)
 {
 	const struct dpa_priv_s	*priv;
 	int			 _errno;
+	struct mac_device	*mac_dev;
 
 	priv = netdev_priv(net_dev);
 
@@ -1054,8 +1055,10 @@ static int dpa_set_mac_address(struct net_device *net_dev, void *addr)
 	if (!priv->mac_dev)
 		/* MAC-less interface, so nothing more to do here */
 		return 0;
+	mac_dev = priv->mac_dev;
 
-	_errno = priv->mac_dev->change_addr(priv->mac_dev, net_dev->dev_addr);
+	_errno = mac_dev->change_addr(mac_dev->get_mac_handle(mac_dev),
+			net_dev->dev_addr);
 	if (_errno < 0) {
 		if (netif_msg_drv(priv))
 			netdev_err(net_dev,
@@ -1078,10 +1081,13 @@ static void dpa_set_rx_mode(struct net_device *net_dev)
 		return;
 
 	if (!!(net_dev->flags & IFF_PROMISC) != priv->mac_dev->promisc) {
-		_errno = priv->mac_dev->change_promisc(priv->mac_dev);
+		priv->mac_dev->promisc = !priv->mac_dev->promisc;
+		_errno = priv->mac_dev->set_promisc(
+				priv->mac_dev->get_mac_handle(priv->mac_dev),
+				priv->mac_dev->promisc);
 		if (unlikely(_errno < 0) && netif_msg_drv(priv))
 			netdev_err(net_dev,
-					   "mac_dev->change_promisc() = %d\n",
+					   "mac_dev->set_promisc() = %d\n",
 					   _errno);
 	}
 
@@ -1131,9 +1137,9 @@ static void dpa_ts_tx_enable(struct net_device *dev)
 	struct mac_device *mac_dev = priv->mac_dev;
 
 	if (mac_dev->fm_rtc_enable)
-		mac_dev->fm_rtc_enable(dev);
+		mac_dev->fm_rtc_enable(get_fm_handle(dev));
 	if (mac_dev->ptp_enable)
-		mac_dev->ptp_enable(mac_dev);
+		mac_dev->ptp_enable(mac_dev->get_mac_handle(mac_dev));
 
 	priv->ts_tx_en = TRUE;
 }
@@ -1150,10 +1156,10 @@ static void dpa_ts_tx_disable(struct net_device *dev)
 	struct mac_device *mac_dev = priv->mac_dev;
 
 	if (mac_dev->fm_rtc_disable)
-		mac_dev->fm_rtc_disable(dev);
+		mac_dev->fm_rtc_disable(get_fm_handle(dev));
 
 	if (mac_dev->ptp_disable)
-		mac_dev->ptp_disable(mac_dev);
+		mac_dev->ptp_disable(mac_dev->get_mac_handle(mac_dev));
 #endif
 
 	priv->ts_tx_en = FALSE;
@@ -1165,9 +1171,9 @@ static void dpa_ts_rx_enable(struct net_device *dev)
 	struct mac_device *mac_dev = priv->mac_dev;
 
 	if (mac_dev->fm_rtc_enable)
-		mac_dev->fm_rtc_enable(dev);
+		mac_dev->fm_rtc_enable(get_fm_handle(dev));
 	if (mac_dev->ptp_enable)
-		mac_dev->ptp_enable(mac_dev);
+		mac_dev->ptp_enable(mac_dev->get_mac_handle(mac_dev));
 
 	priv->ts_rx_en = TRUE;
 }
@@ -1184,10 +1190,10 @@ static void dpa_ts_rx_disable(struct net_device *dev)
 	struct mac_device *mac_dev = priv->mac_dev;
 
 	if (mac_dev->fm_rtc_disable)
-		mac_dev->fm_rtc_disable(dev);
+		mac_dev->fm_rtc_disable(get_fm_handle(dev));
 
 	if (mac_dev->ptp_disable)
-		mac_dev->ptp_disable(mac_dev);
+		mac_dev->ptp_disable(mac_dev->get_mac_handle(mac_dev));
 #endif
 
 	priv->ts_rx_en = FALSE;
