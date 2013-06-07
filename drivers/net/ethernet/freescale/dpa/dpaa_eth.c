@@ -4316,7 +4316,9 @@ dpaa_eth_proxy_probe(struct platform_device *_of_dev)
 
 static const struct of_device_id dpa_match[] = {
 	{
-		.compatible	= "fsl,dpa-ethernet"
+		.compatible	= "fsl,dpa-ethernet",
+		.compatible	= "fsl,dpa-ethernet-shared",
+		.compatible	= "fsl,dpa-ethernet-macless"
 	},
 	{}
 };
