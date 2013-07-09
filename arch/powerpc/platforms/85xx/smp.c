@@ -254,7 +254,6 @@ static void smp_85xx_mach_cpu_die(void)
 }
 #endif /* CONFIG_PPC_E500MC */
 #endif
-
 static inline void flush_spin_table(void *spin_table)
 {
 	flush_dcache_range((ulong)spin_table,
@@ -295,6 +294,9 @@ static int smp_85xx_kick_cpu(int nr)
 	int hw_cpu = get_hard_smp_processor_id(nr);
 	int ioremappable;
 	int ret = 0;
+#ifdef CONFIG_PPC64
+	unsigned long *ptr = NULL;
+#endif
 
 	WARN_ON(nr < 0 || nr >= NR_CPUS);
 	WARN_ON(hw_cpu < 0 || hw_cpu >= NR_CPUS);
@@ -402,17 +404,27 @@ static int smp_85xx_kick_cpu(int nr)
 			qoriq_pm_ops->irq_unmask(nr);
 #endif
 	}
+#ifdef CONFIG_PPC32
 	flush_spin_table(spin_table);
 	out_be32(&spin_table->pir, hw_cpu);
-#ifdef CONFIG_PPC32
 	out_be32(&spin_table->addr_l, __pa(__early_start));
-#else
-	out_be32(&spin_table->addr_h,
-		__pa(*(u64 *)generic_secondary_smp_init) >> 32);
-	out_be32(&spin_table->addr_l,
-		__pa(*(u64 *)generic_secondary_smp_init) & 0xffffffff);
-#endif
 	flush_spin_table(spin_table);
+#else
+	ptr  = (unsigned long *)((unsigned long)&__run_at_kexec);
+	/* We shouldn't access spin_table from the bootloader to up any
+	 * secondary cpu for kexec kernel, and kexec kernel already
+	 * know how to jump to generic_secondary_smp_init.
+	*/
+	if (!*ptr) {
+		flush_spin_table(spin_table);
+		out_be32(&spin_table->pir, hw_cpu);
+		out_be32(&spin_table->addr_h,
+			__pa(*(u64 *)generic_secondary_smp_init) >> 32);
+		out_be32(&spin_table->addr_l,
+			__pa(*(u64 *)generic_secondary_smp_init) & 0xffffffff);
+		flush_spin_table(spin_table);
+	}
+#endif
 
 #ifdef CONFIG_PPC32
 	/* Wait a bit for the CPU to ack. */
