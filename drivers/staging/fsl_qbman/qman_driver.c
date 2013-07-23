@@ -583,7 +583,8 @@ struct qm_portal_config *qm_get_unused_portal_idx(u32 idx)
 	 * opening the device file, and if that isn't the cpu they subsequently
 	 * bind to and do their polling on, tough. */
 	if (ret)
-		portal_set_cpu(ret, hard_smp_processor_id());
+		portal_set_cpu(ret,
+			get_hard_smp_processor_id(raw_smp_processor_id()));
 	return ret;
 }
 
