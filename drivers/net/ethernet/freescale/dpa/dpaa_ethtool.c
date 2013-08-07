@@ -44,6 +44,38 @@
 #include "mac.h"                /* struct mac_device */
 #include "dpaa_eth_common.h"
 
+static char stat_gstrings[][ETH_GSTRING_LEN] = {
+	"tx-rx-64-frames",
+	"tx-rx-65-127-frames",
+	"tx-rx-128-255-frames",
+	"tx-rx-256-511-frames",
+	"tx-rx-512-1023-frames",
+	"tx-rx-1024-1518-frames",
+	"tx-rx-1519-1522-good-vlan",
+	"rx-64-invalid-fcs",
+	"rx-jabber-invalid-fcs",
+	"rx-dropped-by-lack-resource",
+	"rx-alignment-error",
+	"rx-undersize-packets",
+	"rx-oversize-packets",
+	"tx-pause-frame-packets",
+	"rx-pause-frame-packets",
+	"rx-bytes",
+	"rx-packets",
+	"receive-multicast-frames",
+	"receive-broadcast-frames",
+	"rx-dropped-frames",
+	"rx-error-frames",
+	"tx-bytes",
+	"tx-packets",
+	"tx-multicast-frames",
+	"tx-broadcast-frames",
+	"tx-dropped-frames",
+	"tx-error-frames",
+};
+
+#define DPA_STATS_LEN ARRAY_SIZE(stat_gstrings)
+
 static int __cold dpa_get_settings(struct net_device *net_dev,
 		struct ethtool_cmd *et_cmd)
 {
@@ -113,6 +145,8 @@ static void __cold dpa_get_drvinfo(struct net_device *net_dev,
 	}
 	strncpy(drvinfo->bus_info, dev_name(net_dev->dev.parent->parent),
 		sizeof(drvinfo->bus_info)-1)[sizeof(drvinfo->bus_info)-1] = 0;
+
+	drvinfo->n_stats = DPA_STATS_LEN;
 }
 
 static uint32_t __cold dpa_get_msglevel(struct net_device *net_dev)
@@ -124,6 +158,36 @@ static void __cold dpa_set_msglevel(struct net_device *net_dev,
 		uint32_t msg_enable)
 {
 	((struct dpa_priv_s *)netdev_priv(net_dev))->msg_enable = msg_enable;
+}
+
+static void dpa_get_ethtool_stats(struct net_device *netdev,
+				struct ethtool_stats *stats, u64 *data)
+{
+	struct dpa_priv_s       *priv = netdev_priv(netdev);
+	int			_errno;
+
+	_errno = priv->mac_dev->get_stats(priv->mac_dev, data);
+	if (_errno < 0) {
+		if (netif_msg_drv(priv))
+			netdev_err(netdev,
+				"mac_dev->get_stats = %d\n",
+				_errno);
+	}
+}
+
+static void dpa_get_strings(struct net_device *netdev, u32 stringset, u8 *buf)
+{
+	memcpy(buf, stat_gstrings, DPA_STATS_LEN * ETH_GSTRING_LEN);
+}
+
+static int dpa_sset_count(struct net_device *netdev, int sset)
+{
+	switch (sset) {
+	case ETH_SS_STATS:
+		return DPA_STATS_LEN;
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static int __cold dpa_nway_reset(struct net_device *net_dev)
@@ -336,6 +400,9 @@ const struct ethtool_ops dpa_ethtool_ops = {
 	.self_test = NULL, /* TODO invoke the cold-boot unit-test? */
 	.get_ethtool_stats = NULL, /* TODO other stats, currently in debugfs */
 	.get_link = ethtool_op_get_link,
+	.get_strings		= dpa_get_strings,
+	.get_sset_count		= dpa_sset_count,
+	.get_ethtool_stats	= dpa_get_ethtool_stats,
 #ifdef CONFIG_PM
 	.get_wol = dpa_get_wol,
 	.set_wol = dpa_set_wol,

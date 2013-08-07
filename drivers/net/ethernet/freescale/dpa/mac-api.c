@@ -699,6 +699,38 @@ int fm_mac_dump_regs(struct mac_device *h_mac, char *buf, int nn)
 }
 
 
+static int __cold mac_get_statistics(struct mac_device *mac_dev, u64 *data)
+{
+	int	_errno = 0;
+	t_Error err;
+	t_FmMacStatistics *p_Statistics;
+	int i;
+	u64 *buf;
+
+	p_Statistics = kmalloc(sizeof(t_FmMacStatistics), GFP_ATOMIC);
+	if (!p_Statistics) {
+		dev_err(mac_dev->dev, "Out of memory\n");
+		return -ENOMEM;
+	}
+
+	err = FM_MAC_GetStatistics(
+		((struct mac_priv_s *)macdev_priv(mac_dev))->fm_mac, p_Statistics);
+	_errno = -GET_ERROR_TYPE(err);
+	if (_errno < 0) {
+		dev_err(mac_dev->dev,
+			"FM_MAC_GetStatistics() = 0x%08x\n", err);
+		goto out;
+	}
+
+	buf = (u64 *) p_Statistics;
+	for (i = 0; i < sizeof(t_FmMacStatistics)/sizeof(u64); i++)
+		data[i] = buf[i];
+
+out:
+	kfree(p_Statistics);
+	return _errno;
+}
+
 static void __cold setup_dtsec(struct mac_device *mac_dev)
 {
 	mac_dev->init_phy	= dtsec_init_phy;
@@ -722,6 +754,7 @@ static void __cold setup_dtsec(struct mac_device *mac_dev)
 	mac_dev->fm_rtc_set_drift	= fm_rtc_set_drift;
 	mac_dev->fm_rtc_set_alarm	= fm_rtc_set_alarm;
 	mac_dev->fm_rtc_set_fiper	= fm_rtc_set_fiper;
+	mac_dev->get_stats		= mac_get_statistics;
 	mac_dev->set_wol		= fm_mac_set_wol;
 	mac_dev->dump_mac_regs		= dtsec_dump_regs;
 }
@@ -741,6 +774,7 @@ static void __cold setup_xgmac(struct mac_device *mac_dev)
 	mac_dev->set_rx_pause	= fm_mac_set_rx_pause_frames;
 	mac_dev->set_wol	= fm_mac_set_wol;
 	mac_dev->dump_mac_regs	= xgmac_dump_regs;
+	mac_dev->get_stats	= mac_get_statistics;
 }
 
 static void __cold setup_memac(struct mac_device *mac_dev)
@@ -766,6 +800,7 @@ static void __cold setup_memac(struct mac_device *mac_dev)
 	mac_dev->fm_rtc_set_fiper	= fm_rtc_set_fiper;
 	mac_dev->set_wol		= fm_mac_set_wol;
 	mac_dev->dump_mac_regs		= memac_dump_regs;
+	mac_dev->get_stats		= mac_get_statistics;
 }
 
 void (*const mac_setup[])(struct mac_device *mac_dev) = {

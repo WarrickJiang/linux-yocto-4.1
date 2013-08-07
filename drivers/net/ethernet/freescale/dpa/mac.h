@@ -96,6 +96,7 @@ struct mac_device {
 				uint64_t fiper);
 	int (*set_wol)(struct fm_port *port, struct fm_mac_dev *fm_mac_dev,
 			bool en);
+	int (*get_stats)(struct mac_device *mac_dev, uint64_t *p_Statistics);
 	int (*dump_mac_regs)(struct mac_device *h_mac, char *buf, int nn);
 
 };
