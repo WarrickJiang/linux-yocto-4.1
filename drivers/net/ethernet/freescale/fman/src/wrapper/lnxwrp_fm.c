@@ -994,6 +994,10 @@ static void FreeFmDev(t_LnxWrpFmDev  *p_LnxWrpFmDev)
     if (p_LnxWrpFmDev->h_RtcDev)
 	FM_RTC_Free(p_LnxWrpFmDev->h_RtcDev);
 
+    if (p_LnxWrpFmDev->err_irq != 0) {
+	devm_free_irq(p_LnxWrpFmDev->dev, p_LnxWrpFmDev->err_irq, p_LnxWrpFmDev);
+    }
+
     if (p_LnxWrpFmDev->h_Dev)
         FM_Free(p_LnxWrpFmDev->h_Dev);
 
@@ -1012,9 +1016,6 @@ static void FreeFmDev(t_LnxWrpFmDev  *p_LnxWrpFmDev)
     SYS_UnregisterIoMap(p_LnxWrpFmDev->fmBaseAddr);
     devm_iounmap(p_LnxWrpFmDev->dev, UINT_TO_PTR(p_LnxWrpFmDev->fmBaseAddr));
     devm_release_mem_region(p_LnxWrpFmDev->dev, p_LnxWrpFmDev->fmPhysBaseAddr, p_LnxWrpFmDev->fmMemSize);
-    if (p_LnxWrpFmDev->err_irq != 0) {
-        devm_free_irq(p_LnxWrpFmDev->dev, p_LnxWrpFmDev->err_irq, p_LnxWrpFmDev);
-    }
 
     devm_free_irq(p_LnxWrpFmDev->dev, p_LnxWrpFmDev->irq, p_LnxWrpFmDev);
 }
