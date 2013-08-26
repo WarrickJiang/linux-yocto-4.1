@@ -406,7 +406,7 @@ static struct sk_buff *__hot sg_fd_to_skb(const struct dpa_priv_s *priv,
 		BUG_ON(sgt[i].extension);
 
 		dpa_bp = dpa_bpid2pool(sgt[i].bpid);
-		BUG_ON(IS_ERR(dpa_bp));
+		BUG_ON(!dpa_bp);
 		count_ptr = __this_cpu_ptr(dpa_bp->percpu_count);
 
 		sg_addr = qm_sg_addr(&sgt[i]);
@@ -499,7 +499,7 @@ static struct sk_buff *__hot sg_fd_to_skb(const struct dpa_priv_s *priv,
 
 	/* recycle the SGT fragment */
 	dpa_bp = dpa_bpid2pool(fd->bpid);
-	BUG_ON(IS_ERR(dpa_bp));
+	BUG_ON(!dpa_bp);
 	dpa_bp_recycle_frag(dpa_bp, (unsigned long)vaddr);
 	return skb;
 }
@@ -529,6 +529,7 @@ void __hot _dpa_rx(struct net_device *net_dev,
 	}
 
 	dpa_bp = dpa_bpid2pool(fd->bpid);
+	BUG_ON(!dpa_bp);
 	count_ptr = __this_cpu_ptr(dpa_bp->percpu_count);
 	/* Prepare to read from the buffer, but don't unmap it until
 	 * we know the skb allocation succeeded. At this point we already
