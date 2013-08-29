@@ -608,6 +608,17 @@ int qman_have_ccsr(void)
 	return qm ? 1 : 0;
 }
 
+#ifdef CONFIG_KEXEC
+#include <linux/kexec.h>
+
+void qman_release_fqid_all(void);
+
+void qman_crash_shutdown(void)
+{
+	qman_release_fqid_all();
+}
+#endif
+
 __init void qman_init_early(void)
 {
 	struct device_node *dn;
@@ -625,6 +636,10 @@ __init void qman_init_early(void)
 			BUG_ON(ret);
 		}
 	}
+
+#ifdef CONFIG_KEXEC
+	crash_shutdown_register(&qman_crash_shutdown);
+#endif
 }
 
 static void log_edata_bits(u32 bit_count)
