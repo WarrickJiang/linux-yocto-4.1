@@ -2261,7 +2261,22 @@ uart_configure_port(struct uart_driver *drv, struct uart_state *state,
 
 #ifdef CONFIG_CONSOLE_POLL
 
-static int uart_poll_init(struct tty_driver *driver, int line, char *options)
+/**
+ *	uart_poll_init - setup the console polling device
+ *	@driver: pointer to high level tty driver
+ *	@line: tty line number
+ *	@options: baud string for uart initialization
+ *	@rx_callback: call back for character processing
+ *
+ *      uart_poll_init activates the low level initialization of the
+ *      uart device for use with polling access to the uart while the
+ *      interrupts are off, which is primarily used for the debugger.
+ *      If rx_callback is set to -1, the specified tty driver and line
+ *      will have the call back function set to NULL uart_poll_init
+ *      will return immediately.
+ */
+static int uart_poll_init(struct tty_driver *driver, int line,
+		char *options, void *rx_callback)
 {
 	struct uart_driver *drv = driver->driver_state;
 	struct uart_state *state = drv->state + line;
@@ -2276,8 +2291,14 @@ static int uart_poll_init(struct tty_driver *driver, int line, char *options)
 		return -1;
 
 	port = state->uart_port;
+	if (rx_callback + 1 == 0) {
+		port->poll_rx_cb = NULL;
+		return 0;
+	}
 	if (!(port->ops->poll_get_char && port->ops->poll_put_char))
 		return -1;
+
+	port->poll_rx_cb = rx_callback;
 
 	if (port->ops->poll_init) {
 		struct tty_port *tport = &state->port;

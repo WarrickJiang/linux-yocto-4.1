@@ -247,6 +247,9 @@ struct uart_port {
 	const struct attribute_group **tty_groups;	/* all attributes (serial core use only) */
 	struct serial_rs485     rs485;
 	void			*private_data;		/* generic platform data pointer */
+#ifdef CONFIG_CONSOLE_POLL
+	int		(*poll_rx_cb)(u8);
+#endif
 };
 
 static inline int serial_port_in(struct uart_port *up, int offset)

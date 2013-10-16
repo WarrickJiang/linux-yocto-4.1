@@ -286,7 +286,8 @@ struct tty_operations {
 	int (*get_icount)(struct tty_struct *tty,
 				struct serial_icounter_struct *icount);
 #ifdef CONFIG_CONSOLE_POLL
-	int (*poll_init)(struct tty_driver *driver, int line, char *options);
+	int (*poll_init)(struct tty_driver *driver, int line, char *options,
+			void *rx_callback);
 	int (*poll_get_char)(struct tty_driver *driver, int line);
 	void (*poll_put_char)(struct tty_driver *driver, int line, char ch);
 #endif

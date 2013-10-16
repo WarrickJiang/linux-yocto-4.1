@@ -142,6 +142,34 @@ static int kgdboc_option_setup(char *opt)
 	return 0;
 }
 
+static int buffered_char = -1;
+static u8 break_char;
+static int no_polled_breaks;
+static int schedule_breakpoints;
+
+/* Return 1 if a the next layer up should discard the character,
+ * else return 0
+ */
+static int kgdboc_rx_callback(u8 c)
+{
+	if (likely(atomic_read(&kgdb_active) == -1)) {
+		if (no_polled_breaks)
+			return 0;
+		if (c != break_char)
+			buffered_char = c;
+		if (c == break_char ||
+		    (c == '$' && !kgdb_connected && break_char == 0x03)) {
+			if (schedule_breakpoints)
+				kgdb_schedule_breakpoint();
+			else
+				kgdb_breakpoint();
+			return 1;
+		}
+		return 0;
+	}
+	return 1;
+}
+
 __setup("kgdboc=", kgdboc_option_setup);
 
 static void cleanup_kgdboc(void)
@@ -160,12 +188,18 @@ static int configure_kgdboc(void)
 	int err;
 	char *cptr = config;
 	struct console *cons;
+	char *str;
 
 	err = kgdboc_option_setup(config);
 	if (err || !strlen(config) || isspace(config[0]))
 		goto noconfig;
 
 	err = -ENODEV;
+	/* If a driver was previously configured remove it now */
+	if (kgdb_tty_driver)
+		kgdb_tty_driver->ops->poll_init(kgdb_tty_driver, kgdb_tty_line,
+						NULL, (void *)-1);
+	kgdb_tty_driver = NULL;
 	kgdboc_io_ops.is_console = 0;
 	kgdb_tty_driver = NULL;
 
@@ -195,6 +229,27 @@ static int configure_kgdboc(void)
 
 	kgdb_tty_driver = p;
 	kgdb_tty_line = tty_line;
+	/* Set defaults and parse optional configuration information */
+	no_polled_breaks = 0;
+	schedule_breakpoints = 1;
+	break_char = 0x03;
+	if (strstr(config, ",n"))
+		no_polled_breaks = 1;
+	if (strstr(config, ",B"))
+		schedule_breakpoints = 0;
+	str = strstr(config, ",c");
+	if (str)
+		if (kstrtou8(str+2, 0, &break_char))
+			break_char = 0x03;
+	str = strrchr(config, ','); /* pointer to baud for init callback */
+	if (str) {
+		str++;
+		if (!(*str >= '0' && *str <= '9'))
+			str = NULL;
+	}
+	/* Initialize the HW level driver for polling */
+	if (p->ops->poll_init(p, tty_line, str, kgdboc_rx_callback))
+		goto noconfig;
 
 do_register:
 	err = kgdb_register_io_module(&kgdboc_io_ops);
@@ -213,6 +268,10 @@ nmi_con_failed:
 	kgdb_unregister_io_module(&kgdboc_io_ops);
 noconfig:
 	kgdboc_unregister_kbd();
+	if (kgdb_tty_driver)
+		kgdb_tty_driver->ops->poll_init(kgdb_tty_driver, kgdb_tty_line,
+						NULL, (void *)-1);
+	kgdb_tty_driver = NULL;
 	config[0] = 0;
 	configured = 0;
 	cleanup_kgdboc();
@@ -233,6 +292,8 @@ static int kgdboc_get_char(void)
 {
 	if (!kgdb_tty_driver)
 		return -1;
+	if (buffered_char >= 0)
+		return xchg(&buffered_char, -1);
 	return kgdb_tty_driver->ops->poll_get_char(kgdb_tty_driver,
 						kgdb_tty_line);
 }
@@ -334,6 +395,13 @@ early_param("ekgdboc", kgdboc_early_init);
 module_init(init_kgdboc);
 module_exit(cleanup_kgdboc);
 module_param_call(kgdboc, param_set_kgdboc_var, param_get_string, &kps, 0644);
-MODULE_PARM_DESC(kgdboc, "<serial_device>[,baud]");
+/* The optional paramters to the config string are:
+ * ,n == no monitoring the port for a break char
+ * ,B == monitor the port for a break char and issue a breakpoint in line
+ * ,c### == Use an alternate break character 1-255 instead of ^C (3)
+ * The baud parameter must always be last, if used
+ * ,baud == A baud rate parameter IE: 115200n81
+ */
+MODULE_PARM_DESC(kgdboc, "<serial_device>[,n][,B][,c###][,baud]");
 MODULE_DESCRIPTION("KGDB Console TTY Driver");
 MODULE_LICENSE("GPL");

@@ -209,7 +209,7 @@
    </para>
    <sect2 id="kgdbocArgs">
    <title>kgdboc arguments</title>
-   <para>Usage: <constant>kgdboc=[kms][[,]kbd][[,]serial_device][,baud]</constant></para>
+   <para>Usage: <constant>kgdboc=[kms][[,]kbd][[,]serial_device][,n][,B][,c###][,baud]</constant></para>
    <para>The order listed above must be observed if you use any of the
    optional configurations together.
    </para>
@@ -217,6 +217,11 @@
    <itemizedlist>
    <listitem><para>kms = Kernel Mode Setting</para></listitem>
    <listitem><para>kbd = Keyboard</para></listitem>
+   <listitem><para>,n = No monitoring the port for a break char.</para>
+     <para>You would consider using this option if you would like to be able to type the control-c character on your console device.  In which case, to enter the debugger, you need to use sysrq-g</para></listitem>
+   <listitem><para>,B = Monitor the port for a break char and issue a breakpoint in line</para></listitem>
+   <listitem><para>,c### = Use an alternate break character 1-255 instead of ^C (3), example to use ^D as the break char kgdboc=ttyS0,c4,115200</para></listitem>
+   <listitem><para>,baud = A baud rate parameter IE: 115200n81</para></listitem>
    </itemizedlist>
    </para>
    <para>You can configure kgdboc to use the keyboard, and/or a serial
@@ -284,8 +289,9 @@
    </listitem>
    </orderedlist>
    </para>
-   <para>NOTE: Kgdboc does not support interrupting the target via the
-   gdb remote protocol.  You must manually send a sysrq-g unless you
+   <para>NOTE: By default kgdboc tries to use the mode of operation where the
+   low level serial driver will intercept control-c.  If you elect not
+   to use this mode, you must manually send a sysrq-g unless you
    have a proxy that splits console output to a terminal program.
    A console proxy has a separate TCP port for the debugger and a separate
    TCP port for the "human" console.  The proxy can take care of sending
@@ -303,6 +309,16 @@
     if you don't like this are to hack gdb to send the sysrq-g for you
     as well as on the initial connect, or to use a debugger proxy that
     allows an unmodified gdb to do the debugging.
+   </para>
+   <para>
+   The kgdboc driver has two modes of operation depending on if the
+   low level serial driver supports the rx polling call back and how
+   the arguments you passed to kgdboc to configure it.  By default
+   gdb expects to be able to connect to kgdb and start issuing gdb
+   serial commands.  If you specificed the ",n" (IE:
+   kgdboc=ttyS0,n,115200) or your serial driver does not implement
+   the rx poll hook, you must enter the debugger by using the sysrq-g
+   sequence prior to connecting gdb.
    </para>
    </sect3>
    </sect2>
@@ -820,7 +836,14 @@ Task Addr       Pid   Parent [*] cpu State Thread     Command
   request to the debugger, kgdboc invokes a callback in the serial
   core which in turn uses the callback in the UART driver.</para>
   <para>
-  When using kgdboc with a UART, the UART driver must implement two callbacks in the <constant>struct uart_ops</constant>. Example from drivers/8250.c:<programlisting>
+  In the 2.6.28 kernel, the CONSOLE_POLL API was augmented to include
+  a receive call back which a low level serial driver can call when
+  ever it receives a character.  This had the explicit purpose of
+  allowing a kgdboc to register to receive characters so as to execute
+  an entry point to the debugger upon receiving a specific character.
+  </para>
+  <para>
+  When using kgdboc with a UART, the UART driver must implement two callbacks in the <constant>struct uart_ops</constant>. Example from drivers/tty/serial/8250.c:<programlisting>
 #ifdef CONFIG_CONSOLE_POLL
 	.poll_get_char = serial8250_get_poll_char,
 	.poll_put_char = serial8250_put_poll_char,
@@ -834,6 +857,19 @@ Task Addr       Pid   Parent [*] cpu State Thread     Command
   to normal when the debugger detaches.  You need to be very careful
   with any kind of lock you consider, because failing here is most likely
   going to mean pressing the reset button.
+  </para>
+  <para>
+  Each low level serial driver can also call poll_rx_cb().  This is a
+  call back into kgdboc with the purpose allowing kgdboc to intercept
+  characters.  If the function returns a 1, it means that no further
+  processing should be done in the low level driver, as if the
+  character had never been received.  Example from
+  drivers/tty/serial/8250.c:<programlisting>
+#ifdef CONFIG_CONSOLE_POLL
+	if (up->port.poll_rx_cb &amp;&amp; up->port.poll_rx_cb(ch))
+		goto ignore_char;
+#endif
+  </programlisting>
   </para>
   </sect2>
   <sect2 id="kgdbocKbd">
