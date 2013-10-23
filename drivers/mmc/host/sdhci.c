@@ -2332,6 +2332,9 @@ static void sdhci_cmd_irq(struct sdhci_host *host, u32 intmask, u32 *mask)
 			SDHCI_INT_INDEX))
 		host->cmd->error = -EILSEQ;
 
+	if (host->ops->handle_platform_irq)
+		host->ops->handle_platform_irq(host, intmask);
+
 	if (host->cmd->error) {
 		tasklet_schedule(&host->finish_tasklet);
 		return;
@@ -2371,7 +2374,7 @@ static void sdhci_cmd_irq(struct sdhci_host *host, u32 intmask, u32 *mask)
 }
 
 #ifdef CONFIG_MMC_DEBUG
-static void sdhci_adma_show_error(struct sdhci_host *host)
+void sdhci_adma_show_error(struct sdhci_host *host)
 {
 	const char *name = mmc_hostname(host->mmc);
 	void *desc = host->adma_table;
@@ -2400,7 +2403,7 @@ static void sdhci_adma_show_error(struct sdhci_host *host)
 	}
 }
 #else
-static void sdhci_adma_show_error(struct sdhci_host *host) { }
+void sdhci_adma_show_error(struct sdhci_host *host) { }
 #endif
 
 static void sdhci_data_irq(struct sdhci_host *host, u32 intmask)
@@ -2465,9 +2468,10 @@ static void sdhci_data_irq(struct sdhci_host *host, u32 intmask)
 		pr_err("%s: ADMA error\n", mmc_hostname(host->mmc));
 		sdhci_adma_show_error(host);
 		host->data->error = -EIO;
-		if (host->ops->adma_workaround)
-			host->ops->adma_workaround(host, intmask);
 	}
+
+	if (host->ops->handle_platform_irq)
+		host->ops->handle_platform_irq(host, intmask);
 
 	if (host->data->error)
 		sdhci_finish_data(host);
