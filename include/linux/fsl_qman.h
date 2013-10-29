@@ -1525,7 +1525,7 @@ struct qman_fq {
 	/* These are internal to the driver, don't touch. In particular, they
 	 * may change, be removed, or extended (so you shouldn't rely on
 	 * sizeof(qman_fq) being a constant). */
-	spinlock_t fqlock;
+	raw_spinlock_t fqlock;
 	u32 fqid;
 	volatile unsigned long flags;
 	enum qman_fq_state state;

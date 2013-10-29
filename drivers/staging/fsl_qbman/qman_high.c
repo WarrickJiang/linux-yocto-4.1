@@ -57,13 +57,13 @@
 	do { \
 		struct qman_fq *__fq478 = (fq); \
 		if (fq_isset(__fq478, QMAN_FQ_FLAG_LOCKED)) \
-			spin_lock(&__fq478->fqlock); \
+			raw_spin_lock(&__fq478->fqlock); \
 	} while (0)
 #define FQUNLOCK(fq) \
 	do { \
 		struct qman_fq *__fq478 = (fq); \
 		if (fq_isset(__fq478, QMAN_FQ_FLAG_LOCKED)) \
-			spin_unlock(&__fq478->fqlock); \
+			raw_spin_unlock(&__fq478->fqlock); \
 	} while (0)
 
 static inline void fq_set(struct qman_fq *fq, u32 mask)
@@ -1400,7 +1400,7 @@ int qman_create_fq(u32 fqid, u32 flags, struct qman_fq *fq)
 		if (ret)
 			return ret;
 	}
-	spin_lock_init(&fq->fqlock);
+	raw_spin_lock_init(&fq->fqlock);
 	fq->fqid = fqid;
 	fq->flags = flags;
 	fq->state = qman_fq_state_oos;
@@ -4918,7 +4918,7 @@ EXPORT_SYMBOL(qman_ceetm_lfq_get_context);
 
 int qman_ceetm_create_fq(struct qm_ceetm_lfq *lfq, struct qman_fq *fq)
 {
-	spin_lock_init(&fq->fqlock);
+	raw_spin_lock_init(&fq->fqlock);
 	fq->fqid = lfq->idx;
 	fq->flags = QMAN_FQ_FLAG_NO_MODIFY;
 	if (lfq->ern)
