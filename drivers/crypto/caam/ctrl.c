@@ -626,10 +626,11 @@ static int caam_probe(struct platform_device *pdev)
 
 	caam_id = (u64)rd_reg32(&ctrl->perfmon.caam_id_ms) << 32 |
 		  (u64)rd_reg32(&ctrl->perfmon.caam_id_ls);
+	ctrlpriv->era = caam_get_era();
 
 	/* Report "alive" for developer to see */
 	dev_info(dev, "device ID = 0x%016llx (Era %d)\n", caam_id,
-		 caam_get_era());
+		 ctrlpriv->era);
 	dev_info(dev, "job rings = %d, qi = %d\n",
 		 ctrlpriv->total_jobrs, ctrlpriv->qi_present);
 
