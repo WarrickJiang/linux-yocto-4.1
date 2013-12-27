@@ -500,7 +500,8 @@ int __cold dpa_remove(struct platform_device *of_dev)
 	free_percpu(priv->percpu_priv);
 
 	dpa_bp_free(priv, priv->dpa_bp);
-	devm_kfree(dev, priv->dpa_bp);
+	if(atomic_read(&priv->dpa_bp->refs) == 0)
+		kfree(priv->dpa_bp);
 
 	if (priv->buf_layout)
 		devm_kfree(dev, priv->buf_layout);

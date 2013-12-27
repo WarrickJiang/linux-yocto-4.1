@@ -77,9 +77,9 @@ dpa_bp_probe(struct platform_device *_of_dev, size_t *count)
 		return ERR_PTR(-EINVAL);
 	}
 
-	dpa_bp = devm_kzalloc(dev, *count * sizeof(*dpa_bp), GFP_KERNEL);
+	dpa_bp = kzalloc(*count * sizeof(*dpa_bp), GFP_KERNEL);
 	if (unlikely(dpa_bp == NULL)) {
-		dev_err(dev, "devm_kzalloc() failed\n");
+		dev_err(dev, "kzalloc() failed\n");
 		return ERR_PTR(-ENOMEM);
 	}
 

@@ -763,9 +763,9 @@ dpa_priv_bp_probe(struct device *dev)
 {
 	struct dpa_bp *dpa_bp;
 
-	dpa_bp = devm_kzalloc(dev, sizeof(*dpa_bp), GFP_KERNEL);
+	dpa_bp = kzalloc(sizeof(*dpa_bp), GFP_KERNEL);
 	if (unlikely(dpa_bp == NULL)) {
-		dev_err(dev, "devm_kzalloc() failed\n");
+		dev_err(dev, "kzalloc() failed\n");
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -1103,7 +1103,7 @@ mac_probe_failed:
 	free_netdev(net_dev);
 alloc_etherdev_mq_failed:
 	if (atomic_read(&dpa_bp->refs) == 0)
-		devm_kfree(dev, dpa_bp);
+		kfree(dpa_bp);
 
 	return err;
 }

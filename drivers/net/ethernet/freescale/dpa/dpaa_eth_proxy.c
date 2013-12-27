@@ -181,7 +181,7 @@ static int dpaa_eth_proxy_probe(struct platform_device *_of_dev)
 	 * memory freed
 	 */
 	devm_kfree(dev, buf_layout);
-	devm_kfree(dev, dpa_bp);
+	kfree(dpa_bp);
 
 	/* Free FQ structures */
 	devm_kfree(dev, port_fqs.rx_defq);
