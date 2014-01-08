@@ -1164,7 +1164,7 @@ static int of_fsl_qman_remove(struct platform_device *ofdev)
 	return 0;
 };
 
-static int __devinit of_fsl_qman_probe(struct platform_device *ofdev)
+static int of_fsl_qman_probe(struct platform_device *ofdev)
 {
 	int ret;
 
@@ -1207,7 +1207,7 @@ static struct platform_driver of_fsl_qman_driver = {
 		.of_match_table = of_fsl_qman_ids,
 	},
 	.probe = of_fsl_qman_probe,
-	.remove      = __devexit_p(of_fsl_qman_remove),
+	.remove      = of_fsl_qman_remove,
 };
 
 static int qman_ctrl_init(void)
