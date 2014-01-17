@@ -1392,7 +1392,6 @@ static inline int qm_shutdown_fq(struct qm_portal **portal, int portal_count,
 			return -1;
 		}
 		return 0;
-		break;
 	case QM_MCR_NP_STATE_RETIRED:
 		/* Send OOS Command */
 		mcc = qm_mc_start(portal[0]);
@@ -1407,11 +1406,9 @@ static inline int qm_shutdown_fq(struct qm_portal **portal, int portal_count,
 			return -1;
 		}
 		return 0;
-		break;
 	case QM_MCR_NP_STATE_OOS:
 		/*  Done */
 		return 0;
-		break;
 	}
 	return -1;
 }
