@@ -232,6 +232,7 @@ static void bm_reserve_memory(struct bman *bm)
 	u64 upper_ba = 0;
 	u32 lower_ba = 0;
 	u64 addr = 0;
+	u64 end = 0;
 	u32 exp = 0;
 	u32 size = 0;
 	int ret;
@@ -241,7 +242,14 @@ static void bm_reserve_memory(struct bman *bm)
 	exp = (bm_in(FBPR_AR) & 0x3f);
 	size = 2 << exp;
 	addr = (u64)((upper_ba << 32) | lower_ba);
-	ret = memblock_reserve(addr, size);
+
+	if ((addr > memblock_end_of_DRAM()) ||
+	     ((addr + size) < memblock_start_of_DRAM()))
+		return;
+
+	addr = max(addr, memblock_start_of_DRAM());
+	end = min(addr + size, memblock_end_of_DRAM());
+	ret = memblock_reserve(addr, end - addr);
 	WARN_ON(ret);
 }
 #else
