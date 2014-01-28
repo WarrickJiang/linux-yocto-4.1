@@ -264,7 +264,7 @@ void sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *p)
 #define GDB_SIZEOF_REG sizeof(unsigned long)
 #define GDB_SIZEOF_REG_U32 sizeof(u32)
 
-#ifdef CONFIG_FSL_BOOKE
+#if defined(CONFIG_FSL_BOOKE) && defined(CONFIG_SPE)
 #define GDB_SIZEOF_FLOAT_REG sizeof(unsigned long)
 #else
 #define GDB_SIZEOF_FLOAT_REG sizeof(u64)
