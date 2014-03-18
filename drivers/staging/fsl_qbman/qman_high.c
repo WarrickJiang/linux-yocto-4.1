@@ -333,10 +333,11 @@ static inline void qman_stop_dequeues_ex(struct qman_portal *p)
 	PORTAL_IRQ_UNLOCK(p, irqflags);
 }
 
-static int drain_mr(struct qm_portal *p)
+static int qm_drain_mr(struct qm_portal *p)
 {
 	const struct qm_mr_entry *msg;
 loop:
+	qm_mr_pvb_update(p);
 	msg = qm_mr_current(p);
 	if (!msg) {
 		/* if MR was full and h/w had other FQRNI entries to produce, we
@@ -355,6 +356,7 @@ loop:
 		do {
 			now = mfatb();
 		} while ((then + 10000) > now);
+		qm_mr_pvb_update(p);
 		msg = qm_mr_current(p);
 		if (!msg)
 			return 0;
@@ -542,7 +544,8 @@ struct qman_portal *qman_create_portal(
 	qm_isr_disable_write(__p, isdr);
 	while (qm_dqrr_current(__p) != NULL)
 		qm_dqrr_cdc_consume_n(__p, 0xffff);
-	drain_mr(__p);
+	/* drain all mr message */
+	qm_drain_mr(__p);
 	/* Success */
 	portal->config = config;
 	qm_isr_disable_write(__p, 0);
