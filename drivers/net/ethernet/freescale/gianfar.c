@@ -1568,7 +1568,7 @@ static int gfar_suspend(struct device *dev)
 
 	if (netif_running(ndev)) {
 
-		local_irq_save(flags);
+		local_irq_save_nort(flags);
 		lock_tx_qs(priv);
 
 		gfar_halt_nodisable(priv);
@@ -1584,7 +1584,7 @@ static int gfar_suspend(struct device *dev)
 		gfar_write(&regs->maccfg1, tempval);
 
 		unlock_tx_qs(priv);
-		local_irq_restore(flags);
+		local_irq_restore_nort(flags);
 
 		disable_napi(priv);
 
@@ -1626,7 +1626,7 @@ static int gfar_resume(struct device *dev)
 	/* Disable Magic Packet mode, in case something
 	 * else woke us up.
 	 */
-	local_irq_save(flags);
+	local_irq_save_nort(flags);
 	lock_tx_qs(priv);
 
 	tempval = gfar_read(&regs->maccfg2);
@@ -1636,7 +1636,7 @@ static int gfar_resume(struct device *dev)
 	gfar_start(priv);
 
 	unlock_tx_qs(priv);
-	local_irq_restore(flags);
+	local_irq_restore_nort(flags);
 
 	netif_device_attach(ndev);
 
