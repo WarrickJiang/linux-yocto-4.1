@@ -163,22 +163,6 @@ static DEFINE_PER_CPU(struct sk_buff_head, skb_recycle_list);
 
 #define GFAR_RXB_REC_SZ (DEFAULT_RX_BUFFER_SIZE + RXBUF_ALIGNMENT)
 
-static void gfar_init_rxbdp(struct gfar_priv_rx_q *rx_queue, struct rxbd8 *bdp,
-			    dma_addr_t buf)
-{
-	u32 lstatus;
-
-	bdp->bufPtr = cpu_to_be32(buf);
-
-	lstatus = BD_LFLAG(RXBD_EMPTY | RXBD_INTERRUPT);
-	if (bdp == rx_queue->rx_bd_base + rx_queue->rx_ring_size - 1)
-		lstatus |= BD_LFLAG(RXBD_WRAP);
-
-	gfar_wmb();
-
-	bdp->lstatus = cpu_to_be32(lstatus);
-}
-
 static int gfar_init_bds(struct net_device *ndev)
 {
 	struct gfar_private *priv = netdev_priv(ndev);
@@ -2187,80 +2171,10 @@ static int gfar_enet_open(struct net_device *dev)
 	return err;
 }
 
-static inline struct txfcb *gfar_add_fcb(struct sk_buff *skb)
-{
-	struct txfcb *fcb = (struct txfcb *)skb_push(skb, GMAC_FCB_LEN);
-
-	memset(fcb, 0, GMAC_FCB_LEN);
-
-	return fcb;
-}
-
-static inline void gfar_tx_checksum(struct sk_buff *skb, struct txfcb *fcb,
-				    int fcb_length)
-{
-	/* If we're here, it's a IP packet with a TCP or UDP
-	 * payload.  We set it to checksum, using a pseudo-header
-	 * we provide
-	 */
-	u8 flags = TXFCB_DEFAULT;
-
-	/* Tell the controller what the protocol is
-	 * And provide the already calculated phcs
-	 */
-	if (ip_hdr(skb)->protocol == IPPROTO_UDP) {
-		flags |= TXFCB_UDP;
-		fcb->phcs = (__force __be16)(udp_hdr(skb)->check);
-	} else
-		fcb->phcs = (__force __be16)(tcp_hdr(skb)->check);
-
-	/* l3os is the distance between the start of the
-	 * frame (skb->data) and the start of the IP hdr.
-	 * l4os is the distance between the start of the
-	 * l3 hdr and the l4 hdr
-	 */
-	fcb->l3os = (u8)(skb_network_offset(skb) - fcb_length);
-	fcb->l4os = skb_network_header_len(skb);
-
-	fcb->flags = flags;
-}
-
 void inline gfar_tx_vlan(struct sk_buff *skb, struct txfcb *fcb)
 {
 	fcb->flags |= TXFCB_VLN;
 	fcb->vlctl = cpu_to_be16(skb_vlan_tag_get(skb));
-}
-
-static inline struct txbd8 *skip_txbd(struct txbd8 *bdp, int stride,
-				      struct txbd8 *base, int ring_size)
-{
-	struct txbd8 *new_bd = bdp + stride;
-
-	return (new_bd >= (base + ring_size)) ? (new_bd - ring_size) : new_bd;
-}
-
-static inline struct txbd8 *next_txbd(struct txbd8 *bdp, struct txbd8 *base,
-				      int ring_size)
-{
-	return skip_txbd(bdp, 1, base, ring_size);
-}
-
-/* eTSEC12: csum generation not supported for some fcb offsets */
-static inline bool gfar_csum_errata_12(struct gfar_private *priv,
-				       unsigned long fcb_addr)
-{
-	return (gfar_has_errata(priv, GFAR_ERRATA_12) &&
-	       (fcb_addr % 0x20) > 0x18);
-}
-
-/* eTSEC76: csum generation for frames larger than 2500 may
- * cause excess delays before start of transmission
- */
-static inline bool gfar_csum_errata_76(struct gfar_private *priv,
-				       unsigned int len)
-{
-	return (gfar_has_errata(priv, GFAR_ERRATA_76) &&
-	       (len > 2500));
 }
 
 /* This is called by the kernel when a frame is ready for transmission.
@@ -2620,15 +2534,6 @@ static void gfar_timeout(struct net_device *dev)
 	schedule_work(&priv->reset_task);
 }
 
-static void gfar_align_skb(struct sk_buff *skb)
-{
-	/* We need the data buffer to be aligned properly.  We will reserve
-	 * as many bytes as needed to align the data properly
-	 */
-	skb_reserve(skb, RXBUF_ALIGNMENT -
-		    (((unsigned long) skb->data) & (RXBUF_ALIGNMENT - 1)));
-}
-
 static void gfar_recycle_skb(struct sk_buff *skb)
 {
 	struct sk_buff_head *h = &__get_cpu_var(skb_recycle_list);
@@ -2822,43 +2727,6 @@ struct sk_buff *gfar_new_skb(struct net_device *dev)
        return gfar_alloc_skb(dev);
 }
 
-static inline void count_errors(unsigned short status, struct net_device *dev)
-{
-	struct gfar_private *priv = netdev_priv(dev);
-	struct net_device_stats *stats = &dev->stats;
-	struct gfar_extra_stats *estats = &priv->extra_stats;
-
-	/* If the packet was truncated, none of the other errors matter */
-	if (status & RXBD_TRUNCATED) {
-		stats->rx_length_errors++;
-
-		atomic64_inc(&estats->rx_trunc);
-
-		return;
-	}
-	/* Count the errors, if there were any */
-	if (status & (RXBD_LARGE | RXBD_SHORT)) {
-		stats->rx_length_errors++;
-
-		if (status & RXBD_LARGE)
-			atomic64_inc(&estats->rx_large);
-		else
-			atomic64_inc(&estats->rx_short);
-	}
-	if (status & RXBD_NONOCTET) {
-		stats->rx_frame_errors++;
-		atomic64_inc(&estats->rx_nonoctet);
-	}
-	if (status & RXBD_CRCERR) {
-		atomic64_inc(&estats->rx_crcerr);
-		stats->rx_crc_errors++;
-	}
-	if (status & RXBD_OVERRUN) {
-		atomic64_inc(&estats->rx_overrun);
-		stats->rx_crc_errors++;
-	}
-}
-
 irqreturn_t gfar_receive(int irq, void *grp_id)
 {
 	struct gfar_priv_grp *grp = (struct gfar_priv_grp *)grp_id;
@@ -2904,19 +2772,6 @@ static irqreturn_t gfar_transmit(int irq, void *grp_id)
 	}
 
 	return IRQ_HANDLED;
-}
-
-static inline void gfar_rx_checksum(struct sk_buff *skb, struct rxfcb *fcb)
-{
-	/* If valid headers were found, and valid sums
-	 * were verified, then we tell the kernel that no
-	 * checksumming is necessary.  Otherwise, it is [FIXME]
-	 */
-	if ((be16_to_cpu(fcb->flags) & RXFCB_CSUM_MASK) ==
-	    (RXFCB_CIP | RXFCB_CTU))
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
-	else
-		skb_checksum_none_assert(skb);
 }
 
 /* gfar_process_frame() -- handle one incoming packet if skb isn't NULL. */
