@@ -1008,7 +1008,8 @@ static long ioctl_dma_unmap(struct ctx *ctx, void __user *arg)
 {
 	struct mem_mapping *map;
 	struct vm_area_struct *vma;
-	int ret;
+	int ret, i;
+	struct mem_fragment *current_frag;
 
 	down_write(&current->mm->mmap_sem);
 	vma = find_vma(current->mm, (unsigned long)arg);
@@ -1030,6 +1031,13 @@ static long ioctl_dma_unmap(struct ctx *ctx, void __user *arg)
 	}
 	map = NULL;
 map_match:
+	current_frag = map->root_frag;
+	for (i = 0; i < map->frag_count; i++) {
+		DPA_ASSERT(current_frag->refs > 0);
+		--current_frag->refs;
+		current_frag = list_entry(current_frag->list.prev,
+					  struct mem_fragment, list);
+	}
 	list_del(&map->list);
 	compress_frags();
 	spin_unlock(&mem_lock);
