@@ -860,7 +860,7 @@ static void setup_omt(struct ome *omt)
  * Get the maximum number of PAACT table entries
  * and subwindows supported by PAMU
  */
-static void get_pamu_cap_values(unsigned long pamu_reg_base)
+static void get_pamu_cap_values(void *pamu_reg_base)
 {
 	u32 pc_val;
 
@@ -870,9 +870,8 @@ static void get_pamu_cap_values(unsigned long pamu_reg_base)
 }
 
 /* Setup PAMU registers pointing to PAACT, SPAACT and OMT */
-static int setup_one_pamu(unsigned long pamu_reg_base, unsigned long pamu_reg_size,
-			  phys_addr_t ppaact_phys, phys_addr_t spaact_phys,
-			  phys_addr_t omt_phys)
+int setup_one_pamu(void *pamu_reg_base, phys_addr_t ppaact_phys,
+		    phys_addr_t spaact_phys, phys_addr_t omt_phys)
 {
 	u32 *pc;
 	struct pamu_mmap_regs *pamu_regs;
