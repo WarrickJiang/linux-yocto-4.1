@@ -69,6 +69,8 @@ struct mem_mapping {
 	u32 frag_count;
 	u64 total_size;
 	struct list_head list;
+	int refs;
+	void *virt_addr;
 };
 
 struct portal_mapping {
@@ -869,8 +871,16 @@ static long ioctl_dma_map(struct file *fp, struct ctx *ctx,
 				   to this process */
 				list_for_each_entry(tmp, &ctx->maps, list)
 					if (tmp->root_frag == frag) {
-						ret = -EBUSY;
-						goto out;
+						/* Already mapped, just need to
+						   inc ref count */
+						tmp->refs++;
+						kfree(map);
+						i->did_create = 0;
+						i->len = frag->len;
+						i->phys_addr = frag->base;
+						i->ptr = tmp->virt_addr;
+						spin_unlock(&mem_lock);
+						return 0;
 					}
 				i->has_locking = frag->has_locking;
 				i->did_create = 0;
@@ -977,6 +987,7 @@ do_map:
 	map->root_frag = start_frag;
 	map->total_size = i->len;
 	map->frag_count = frag_count;
+	map->refs = 1;
 	list_add(&map->list, &ctx->maps);
 	i->phys_addr = start_frag->base;
 out:
@@ -996,9 +1007,10 @@ out:
 		up_write(&current->mm->mmap_sem);
 		if (longret & ~PAGE_MASK)
 			ret = (int)longret;
-		else
+		else {
 			i->ptr = (void *)longret;
-
+			map->virt_addr = i->ptr;
+		}
 	} else
 		kfree(map);
 	return ret;
@@ -1010,6 +1022,8 @@ static long ioctl_dma_unmap(struct ctx *ctx, void __user *arg)
 	struct vm_area_struct *vma;
 	int ret, i;
 	struct mem_fragment *current_frag;
+	size_t sz;
+	unsigned long base;
 
 	down_write(&current->mm->mmap_sem);
 	vma = find_vma(current->mm, (unsigned long)arg);
@@ -1029,8 +1043,19 @@ static long ioctl_dma_unmap(struct ctx *ctx, void __user *arg)
 			goto map_match;
 		}
 	}
-	map = NULL;
+	/* Failed to find a matching mapping for this process */
+	ret = -EFAULT;
+	spin_unlock(&mem_lock);
+	goto out;
 map_match:
+	map->refs--;
+	if (map->refs != 0) {
+		/* Another call the dma_map is referencing this */
+		ret = 0;
+		spin_unlock(&mem_lock);
+		goto out;
+	}
+
 	current_frag = map->root_frag;
 	for (i = 0; i < map->frag_count; i++) {
 		DPA_ASSERT(current_frag->refs > 0);
@@ -1041,13 +1066,12 @@ map_match:
 	list_del(&map->list);
 	compress_frags();
 	spin_unlock(&mem_lock);
-	if (map) {
-		unsigned long base = vma->vm_start;
-		size_t sz = vma->vm_end - vma->vm_start;
-		do_munmap(current->mm, base, sz);
-		ret = 0;
-	} else
-		ret = -EFAULT;
+
+	base = vma->vm_start;
+	sz = vma->vm_end - vma->vm_start;
+	do_munmap(current->mm, base, sz);
+	ret = 0;
+ out:
 	up_write(&current->mm->mmap_sem);
 	return ret;
 }
