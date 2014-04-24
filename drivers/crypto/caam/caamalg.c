@@ -2692,11 +2692,8 @@ static void tls_encrypt_done(struct device *jrdev, u32 *desc, u32 err,
 	edesc = (struct aead_edesc *)((char *)desc -
 		 offsetof(struct aead_edesc, hw_desc));
 
-	if (err) {
-		char tmp[CAAM_ERROR_STR_MAX];
-
-		dev_err(jrdev, "%08x: %s\n", err, caam_jr_strstatus(tmp, err));
-	}
+	if (err)
+		caam_jr_strstatus(jrdev, err);
 
 	aead_unmap(jrdev, edesc, req);
 
@@ -2737,11 +2734,8 @@ static void tls_decrypt_done(struct device *jrdev, u32 *desc, u32 err,
 		       req->cryptlen, 1);
 #endif
 
-	if (err) {
-		char tmp[CAAM_ERROR_STR_MAX];
-
-		dev_err(jrdev, "%08x: %s\n", err, caam_jr_strstatus(tmp, err));
-	}
+	if (err)
+		caam_jr_strstatus(jrdev, err);
 
 	aead_unmap(jrdev, edesc, req);
 
