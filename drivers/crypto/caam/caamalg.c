@@ -264,7 +264,7 @@ static int aead_null_set_sh_desc(struct crypto_aead *aead)
 	struct aead_tfm *tfm = &aead->base.crt_aead;
 	struct caam_ctx *ctx = crypto_aead_ctx(aead);
 	struct device *jrdev = ctx->jrdev;
-	bool keys_fit_inline = false;
+	bool keys_fit_inline;
 	u32 *key_jump_cmd, *jump_cmd, *read_move_cmd, *write_move_cmd;
 	u32 *desc;
 
@@ -275,6 +275,8 @@ static int aead_null_set_sh_desc(struct crypto_aead *aead)
 	if (DESC_AEAD_NULL_ENC_LEN + DESC_JOB_IO_LEN +
 	    ctx->split_key_pad_len <= CAAM_DESC_BYTES_MAX)
 		keys_fit_inline = true;
+	else
+		keys_fit_inline = false;
 
 	/* aead_encrypt shared descriptor */
 	desc = ctx->sh_desc_enc;
@@ -362,6 +364,8 @@ static int aead_null_set_sh_desc(struct crypto_aead *aead)
 	if (DESC_AEAD_NULL_DEC_LEN + DESC_JOB_IO_LEN +
 	    ctx->split_key_pad_len <= CAAM_DESC_BYTES_MAX)
 		keys_fit_inline = true;
+	else
+		keys_fit_inline = false;
 
 	desc = ctx->sh_desc_dec;
 
@@ -498,6 +502,9 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 	    (is_rfc3686 ? DESC_AEAD_CTR_RFC3686_LEN : 0) <=
 	    CAAM_DESC_BYTES_MAX)
 		keys_fit_inline = true;
+	else
+		keys_fit_inline = false;
+
 
 	/* aead_encrypt shared descriptor */
 	desc = ctx->sh_desc_enc;
@@ -567,6 +574,8 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 	    (is_rfc3686 ? DESC_AEAD_CTR_RFC3686_LEN : 0) <=
 	    CAAM_DESC_BYTES_MAX)
 		keys_fit_inline = true;
+	else
+		keys_fit_inline = false;
 
 	/* aead_decrypt shared descriptor */
 	desc = ctx->sh_desc_dec;
@@ -638,6 +647,8 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 	    (is_rfc3686 ? DESC_AEAD_CTR_RFC3686_LEN : 0) <=
 	    CAAM_DESC_BYTES_MAX)
 		keys_fit_inline = true;
+	else
+		keys_fit_inline = false;
 
 	/* aead_givencrypt shared descriptor */
 	desc = ctx->sh_desc_givenc;
@@ -1649,7 +1660,7 @@ static int tls_set_sh_desc(struct crypto_aead *aead)
 	struct aead_tfm *tfm = &aead->base.crt_aead;
 	struct caam_ctx *ctx = crypto_aead_ctx(aead);
 	struct device *jrdev = ctx->jrdev;
-	bool keys_fit_inline = false;
+	bool keys_fit_inline;
 	u32 *key_jump_cmd, *zero_payload_jump_cmd, *skip_zero_jump_cmd;
 	u32 genpad, idx_ld_datasz, idx_ld_pad, jumpback, stidx;
 	u32 *desc;
@@ -1680,6 +1691,8 @@ static int tls_set_sh_desc(struct crypto_aead *aead)
 		idx_ld_pad = DESC_TLS10_ENC_LEN + ctx->split_key_pad_len +
 			     ctx->enckeylen - 2 * CAAM_CMD_SZ;
 	} else {
+		keys_fit_inline = false;
+
 		idx_ld_datasz = DESC_TLS10_ENC_LEN + 2 * CAAM_PTR_SZ -
 				4 * CAAM_CMD_SZ;
 		idx_ld_pad = DESC_TLS10_ENC_LEN + 2 * CAAM_PTR_SZ -
