@@ -1663,6 +1663,7 @@ BEGIN_FTR_SECTION
 	rlwinm	r4,r4,0,0,30	/* Get the thread0 cpu id. */
 	LOAD_REG_ADDR(r5, __thread0_cpu_id)
 	std	r4,0(r5)
+	sync
 
 	/* Configure the MSR per the default */
 	LOAD_REG_IMMEDIATE(r4, MSR_KERNEL);
