@@ -20,7 +20,7 @@
 #include "xylon_crtc.h"
 #include "xylon_irq.h"
 
-irqreturn_t xylon_drm_irq_handler(DRM_IRQ_ARGS)
+irqreturn_t xylon_drm_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = (struct drm_device *)arg;
 	struct xylon_drm_device *xdev;
@@ -113,7 +113,7 @@ int xylon_drm_irq_uninstall(struct drm_device *dev)
 	if (dev->num_crtcs) {
 		spin_lock_irqsave(&dev->vbl_lock, irqflags);
 		for (i = 0; i < dev->num_crtcs; i++) {
-			DRM_WAKEUP(&dev->vblank[i].queue);
+			wake_up(&dev->vblank[i].queue);
 			dev->vblank[i].enabled = 0;
 			dev->vblank[i].last =
 				dev->driver->get_vblank_counter(dev, i);
