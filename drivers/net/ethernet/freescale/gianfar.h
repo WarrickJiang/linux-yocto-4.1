@@ -1351,6 +1351,9 @@ struct gfar_private {
 		/* L2 SRAM alloc of BDs */
 		bd_l2sram_en:1;
 
+	/* little endian dma buffer and descriptor host interface */
+	unsigned int dma_endian_le;
+
 	/* The total tx and rx ring size for the enabled queues */
 	unsigned int total_tx_ring_size;
 	unsigned int total_rx_ring_size;
