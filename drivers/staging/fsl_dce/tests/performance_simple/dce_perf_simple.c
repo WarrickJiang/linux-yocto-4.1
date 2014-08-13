@@ -782,7 +782,7 @@ static int do_operation(void)
 	struct dce_process_cf_gzip_req *def_process_req;
 	struct dce_bman_cfg bcfg;
 
-	pr_info("DCE thread on cpu %d\n", smp_processor_id());
+	pr_info("DCE thread on cpu %d\n", raw_smp_processor_id());
 
 	bcfg.tsize = b_sg_block_size_code;
 	bcfg.tbpid = bman_get_params(pool_sg)->bpid;
