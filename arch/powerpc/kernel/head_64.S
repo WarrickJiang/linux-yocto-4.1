@@ -821,6 +821,12 @@ start_here_common:
 	/* Do more system initializations in virtual mode */
 	bl	setup_system
 
+#ifdef CONFIG_PPC_BOOK3E
+BEGIN_FTR_SECTION
+	bl	.fsl_enable_threads
+END_FTR_SECTION_IFSET(CPU_FTR_SMT)
+#endif
+
 	/* Mark interrupts soft and hard disabled (they might be enabled
 	 * in the PACA when doing hotplug)
 	 */
