@@ -417,6 +417,8 @@ struct sdhci_host {
 #define SDHCI_QUIRK2_ACMD23_BROKEN			(1<<14)
 /* Controller can't perform reset all successfully */
 #define SDHCI_QUIRK2_BROKEN_RESET_ALL			(1U<<31)
+/* Controller need long time to generate command complete interrupt */
+#define SDHCI_QUIRK2_LONG_TIME_CMD_COMPLETE_IRQ		(1<<30)
 
 	int irq;		/* Device IRQ */
 	void __iomem *ioaddr;	/* Mapped address */
