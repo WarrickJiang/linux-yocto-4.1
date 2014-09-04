@@ -77,6 +77,9 @@ void arch_cpu_idle(void)
 
 	HMT_medium();
 	ppc64_runlatch_on();
+#ifdef CONFIG_FSL_ERRATUM_A_006184
+	mtspr(SPRN_TSR, TSR_ENW);
+#endif
 }
 
 int powersave_nap;
