@@ -35,6 +35,8 @@
 #include "smp.h"
 #include "mpc85xx.h"
 
+#include <linux/fsl_usdpaa.h>
+
 void __init corenet_gen_pic_init(void)
 {
 	struct mpic *mpic;
@@ -226,6 +228,9 @@ static __init void corenet_ds_init_early(void)
 #endif
 #ifdef CONFIG_FSL_BMAN_CONFIG
 	bman_init_early();
+#endif
+#ifdef CONFIG_FSL_USDPAA
+	fsl_usdpaa_init_early();
 #endif
 }
 
