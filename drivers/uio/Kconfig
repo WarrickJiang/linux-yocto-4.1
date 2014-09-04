@@ -155,4 +155,9 @@ config UIO_MF624
 
 	  If you compile this as a module, it will be called uio_mf624.
 
+config UIO_FSL_SRIO
+	tristate "Freescale Serial RapidIO support"
+	depends on RAPIDIO=n
+	default n
+
 endif
