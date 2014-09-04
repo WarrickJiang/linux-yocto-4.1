@@ -419,6 +419,10 @@ struct sdhci_host {
 #define SDHCI_QUIRK2_BROKEN_RESET_ALL			(1U<<31)
 /* Controller need long time to generate command complete interrupt */
 #define SDHCI_QUIRK2_LONG_TIME_CMD_COMPLETE_IRQ		(1<<30)
+/* Controller can only supports 1.8V, but the peripheral hardware
+ * circuit has capability to support 3.3V
+ */
+#define SDHCI_QUIRK2_CIRCUIT_SUPPORT_VS33		(1<<29)
 
 	int irq;		/* Device IRQ */
 	void __iomem *ioaddr;	/* Mapped address */
