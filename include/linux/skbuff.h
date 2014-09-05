@@ -830,6 +830,9 @@ static inline struct sk_buff *alloc_skb_head(gfp_t priority)
 	return __alloc_skb_head(priority, -1);
 }
 
+void skb_recycle(struct sk_buff *skb);
+bool skb_recycle_check(struct sk_buff *skb, int skb_size);
+
 struct sk_buff *skb_morph(struct sk_buff *dst, struct sk_buff *src);
 int skb_copy_ubufs(struct sk_buff *skb, gfp_t gfp_mask);
 struct sk_buff *skb_clone(struct sk_buff *skb, gfp_t priority);
@@ -2935,6 +2938,27 @@ static inline int skb_csum_unnecessary(const struct sk_buff *skb)
 		skb->csum_valid ||
 		(skb->ip_summed == CHECKSUM_PARTIAL &&
 		 skb_checksum_start_offset(skb) >= 0));
+}
+
+static inline bool skb_is_recycleable(const struct sk_buff *skb, int skb_size)
+{
+	if (irqs_disabled())
+		return false;
+
+	if (skb_shinfo(skb)->tx_flags & SKBTX_DEV_ZEROCOPY)
+		return false;
+
+	if (skb_is_nonlinear(skb) || skb->fclone != SKB_FCLONE_UNAVAILABLE)
+		return false;
+
+	skb_size = SKB_DATA_ALIGN(skb_size + NET_SKB_PAD);
+	if (skb_end_offset(skb) < skb_size)
+		return false;
+
+	if (skb_shared(skb) || skb_cloned(skb))
+		return false;
+
+	return true;
 }
 
 /**
