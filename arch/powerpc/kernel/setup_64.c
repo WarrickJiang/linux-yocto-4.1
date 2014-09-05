@@ -137,6 +137,9 @@ static char *smt_enabled_cmdline;
 /* Look for ibm,smt-enabled OF option */
 static void check_smt_enabled(void)
 {
+#ifdef CONFIG_PPC_DISABLE_THREADS
+	smt_enabled_at_boot = 0;
+#else
 	struct device_node *dn;
 	const char *smt_option;
 
@@ -174,6 +177,7 @@ static void check_smt_enabled(void)
 			of_node_put(dn);
 		}
 	}
+#endif
 }
 
 /* Look for smt-enabled= cmdline option */
