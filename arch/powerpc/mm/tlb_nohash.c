@@ -57,7 +57,12 @@
 struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT] = {
 	[MMU_PAGE_4K] = {
 		.shift	= 12,
+		.ind	= 21,
 		.enc	= BOOK3E_PAGESZ_4K,
+	},
+	[MMU_PAGE_1M] = {
+		.shift	= 20,
+		.enc	= BOOK3E_PAGESZ_1M,
 	},
 	[MMU_PAGE_2M] = {
 		.shift	= 21,
@@ -472,6 +477,7 @@ static void setup_page_sizes(void)
 		tlb1ps = mfspr(SPRN_TLB1PS);
 		eptcfg = mfspr(SPRN_EPTCFG);
 
+#ifndef CONFIG_FSL_ERRATUM_A_005337
 		if ((tlb1cfg & TLBnCFG_IND) && (tlb0cfg & TLBnCFG_PT))
 			book3e_htw_mode = PPC_HTW_E6500;
 
@@ -482,6 +488,7 @@ static void setup_page_sizes(void)
 		 */
 		if (eptcfg != 2)
 			book3e_htw_mode = PPC_HTW_NONE;
+#endif
 
 		for (psize = 0; psize < MMU_PAGE_COUNT; ++psize) {
 			struct mmu_psize_def *def = &mmu_psize_defs[psize];

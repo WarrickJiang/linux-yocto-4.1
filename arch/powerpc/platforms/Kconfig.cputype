@@ -177,6 +177,17 @@ config PPC_E500MC
 	  such as e5500/e6500), and must be disabled for running on
 	  e500v1 or e500v2.
 
+config FSL_ERRATUM_A_005337
+	bool "Work around erratum A-005337 (no hw tablewalk)"
+	depends on PPC_E500MC
+	default y
+	help
+	  This works around erratum A-005337 by not using hardware tablewalk,
+	  even if the hardware advertises it as present.
+
+	  Say Y if if you need to be able to run on rev1 silicon, otherwise
+	  say N for better performance.
+
 config FSL_ERRATUM_A_006184
 	bool "Work around erratum A-006184"
 	help
