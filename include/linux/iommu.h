@@ -90,6 +90,14 @@ enum iommu_cap {
 	IOMMU_CAP_NOEXEC,		/* IOMMU_NOEXEC flag */
 };
 
+/* define indexes for each operation mapping scenario */
+enum omap_index {
+	OMI_QMAN,
+	OMI_FMAN,
+	OMI_QMAN_PRIV,
+	OMI_CAAM,
+};
+
 /*
  * Following constraints are specifc to FSL_PAMUV1:
  *  -aperture must be power of 2, and naturally aligned

@@ -26,11 +26,6 @@
 #include <asm/mpc85xx.h>
 #include <asm/fsl_guts.h>
 
-/* define indexes for each operation mapping scenario */
-#define OMI_QMAN        0x00
-#define OMI_FMAN        0x01
-#define OMI_QMAN_PRIV   0x02
-#define OMI_CAAM        0x03
 
 #define make64(high, low) (((u64)(high) << 32) | (low))
 
