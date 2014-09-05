@@ -13,3 +13,6 @@ obj-$(CONFIG_CRYPTO_DEV_FSL_CAAM_RNG_API) += caamrng.o
 
 caam-objs := ctrl.o
 caam_jr-objs := jr.o key_gen.o error.o
+ifeq ($(CONFIG_FSL_QMAN), y)
+        caam-objs += qi.o
+endif
