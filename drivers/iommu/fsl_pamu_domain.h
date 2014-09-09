@@ -22,10 +22,11 @@
 #include "fsl_pamu.h"
 
 struct dma_window {
-	phys_addr_t paddr;
+	phys_addr_t                   paddr;
 	u64 size;
-	int valid;
-	int prot;
+	int                          valid;
+	int                          prot;
+	u32                          omi;
 };
 
 struct fsl_dma_domain {
