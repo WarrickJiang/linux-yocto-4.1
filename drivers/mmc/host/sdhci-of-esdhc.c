@@ -144,13 +144,28 @@ static void esdhc_writeb(struct sdhci_host *host, u8 val, int reg)
 	if (reg == SDHCI_HOST_CONTROL)
 		val &= ~ESDHC_HOST_CONTROL_RES;
 
-	/* If we have this quirk just use reset cmd and reset data to
-	 * instead of reset all.
+	/*
+	 * If we have this quirk:
+	 * 1. Disabled the clock.
+	 * 2. Perform reset all command.
+	 * 3. Enable the clock.
 	 */
 	if ((reg == SDHCI_SOFTWARE_RESET) &&
 			(host->quirks2 & SDHCI_QUIRK2_BROKEN_RESET_ALL) &&
-			(val & SDHCI_RESET_ALL))
-		val = SDHCI_RESET_CMD | SDHCI_RESET_DATA;
+			(val & SDHCI_RESET_ALL)) {
+		u32 temp;
+
+		temp = esdhc_readl(host, ESDHC_SYSTEM_CONTROL);
+		temp &= ~ESDHC_CLOCK_CRDEN;
+		esdhc_writel(host, temp, ESDHC_SYSTEM_CONTROL);
+
+		sdhci_be32bs_writeb(host, val, reg);
+
+		temp |= ESDHC_CLOCK_CRDEN;
+		esdhc_writel(host, temp, ESDHC_SYSTEM_CONTROL);
+
+		return;
+	}
 
 	if (reg == SDHCI_POWER_CONTROL) {
 		/* eSDHC don't support gate off power */
@@ -318,6 +333,7 @@ static void esdhc_of_set_clock(struct sdhci_host *host, unsigned int clock)
 	int div = 1;
 	u32 temp;
 	u32 actual_clk;
+	u32 timeout;
 
 	host->mmc->actual_clock = 0;
 
@@ -334,7 +350,7 @@ static void esdhc_of_set_clock(struct sdhci_host *host, unsigned int clock)
 
 	temp = sdhci_readl(host, ESDHC_SYSTEM_CONTROL);
 	temp &= ~(ESDHC_CLOCK_IPGEN | ESDHC_CLOCK_HCKEN | ESDHC_CLOCK_PEREN
-		| ESDHC_CLOCK_MASK);
+		| ESDHC_CLOCK_MASK | ESDHC_CLOCK_CRDEN);
 	sdhci_writel(host, temp, ESDHC_SYSTEM_CONTROL);
 
 	while (host->max_clk / pre_div / 16 > clock && pre_div < 256)
@@ -355,7 +371,21 @@ static void esdhc_of_set_clock(struct sdhci_host *host, unsigned int clock)
 		| (div << ESDHC_DIVIDER_SHIFT)
 		| (pre_div << ESDHC_PREDIV_SHIFT));
 	sdhci_writel(host, temp, ESDHC_SYSTEM_CONTROL);
-	mdelay(1);
+
+	/* Wait max 20 ms */
+	timeout = 20;
+	while (!(sdhci_readl(host, ESDHCI_PRESENT_STATE) & ESDHC_CLK_STABLE)) {
+		if (timeout == 0) {
+			pr_err("%s: Internal clock never "
+				"stabilised.\n", mmc_hostname(host->mmc));
+			return;
+		}
+		timeout--;
+		mdelay(1);
+	}
+
+	temp |= ESDHC_CLOCK_CRDEN;
+	sdhci_writel(host, temp, ESDHC_SYSTEM_CONTROL);
 
 	if (host->quirks & SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK) {
 		host->timeout_clk = actual_clk / 1000;
@@ -393,11 +423,14 @@ static void esdhc_of_platform_init(struct sdhci_host *host)
 	 * Check for A-005055: A glitch is generated on the card clock
 	 * due to software reset or a clock change
 	 * Impact list:
-	 * T4240-R1.0 B4860-R1.0 P3041-R1.0 P3041-R2.0 P2041-R1.0
-	 * P2041-R1.1 P2041-R2.0 P1010-R1.0
+	 * T4240-R1.0 B4860-4420-R1.0-R2.0 P3041-R1.0 P3041-R2.0
+	 * P2041-R1.0 P2041-R1.1 P2041-R2.0 P1010-R1.0
 	 */
 	if (((SVR_SOC_VER(svr) == SVR_T4240) && (SVR_REV(svr) == 0x10)) ||
 		((SVR_SOC_VER(svr) == SVR_B4860) && (SVR_REV(svr) == 0x10)) ||
+		((SVR_SOC_VER(svr) == SVR_B4860) && (SVR_REV(svr) == 0x20)) ||
+		((SVR_SOC_VER(svr) == SVR_B4420) && (SVR_REV(svr) == 0x10)) ||
+		((SVR_SOC_VER(svr) == SVR_B4420) && (SVR_REV(svr) == 0x20)) ||
 		((SVR_SOC_VER(svr) == SVR_P1010) && (SVR_REV(svr) == 0x10)) ||
 		((SVR_SOC_VER(svr) == SVR_P3041) && (SVR_REV(svr) == 0x10)) ||
 		((SVR_SOC_VER(svr) == SVR_P3041) && (SVR_REV(svr) == 0x20)) ||
