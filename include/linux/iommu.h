@@ -101,6 +101,8 @@ enum omap_index {
 	OMI_FMAN,
 	OMI_QMAN_PRIV,
 	OMI_CAAM,
+	OMI_PMAN,
+	OMI_MAX,
 };
 
 /*
