@@ -337,6 +337,11 @@ static struct sk_buff *__hot contig_fd_to_skb(const struct dpa_priv_s *priv,
 	vaddr = phys_to_virt(addr);
 	BUG_ON(!IS_ALIGNED((unsigned long)vaddr, SMP_CACHE_BYTES));
 
+	/* Build the skb and adjust data and tail pointers */
+	skb = build_skb(vaddr, dpa_bp->size + DPA_SKB_TAILROOM);
+	if (unlikely(!skb))
+		return NULL;
+
 	/* do we need the timestamp for bad frames? */
 #ifdef CONFIG_FSL_DPAA_1588
 	if (priv->tsu && priv->tsu->valid && priv->tsu->hwts_rx_en_ioctl)
@@ -351,11 +356,6 @@ static struct sk_buff *__hot contig_fd_to_skb(const struct dpa_priv_s *priv,
 	 * skb_shinfo) be SMP_CACHE_BYTES-aligned. The former is aligned,
 	 * thanks to vaddr. We still need to adjust the size accordingly.
 	 */
-	skb = build_skb(vaddr, DPA_SKB_SIZE(dpa_bp->size) +
-		SKB_DATA_ALIGN(sizeof(struct skb_shared_info)));
-	if (unlikely(!skb))
-		return NULL;
-
 	BUG_ON(fd_off != priv->rx_headroom);
 	skb_reserve(skb, fd_off);
 	skb_put(skb, dpa_fd_length(fd));
@@ -398,15 +398,6 @@ static struct sk_buff *__hot sg_fd_to_skb(const struct dpa_priv_s *priv,
 
 	vaddr = phys_to_virt(addr);
 	BUG_ON(!IS_ALIGNED((unsigned long)vaddr, SMP_CACHE_BYTES));
-#ifdef CONFIG_FSL_DPAA_1588
-	if (priv->tsu && priv->tsu->valid && priv->tsu->hwts_rx_en_ioctl)
-		dpa_ptp_store_rxstamp(priv, skb, vaddr);
-#endif
-
-#ifdef CONFIG_FSL_DPAA_TS
-	if (priv->ts_rx_en)
-		dpa_get_ts(priv, RX, skb_hwtstamps(skb), vaddr);
-#endif /* CONFIG_FSL_DPAA_TS */
 
 	/* Iterate through the SGT entries and add data buffers to the skb */
 	sgt = vaddr + fd_off;
@@ -440,6 +431,17 @@ static struct sk_buff *__hot sg_fd_to_skb(const struct dpa_priv_s *priv,
 				 * not changed, nor have the pool counts.
 				 */
 				return NULL;
+
+#ifdef CONFIG_FSL_DPAA_1588
+			if (priv->tsu && priv->tsu->valid &&
+			    priv->tsu->hwts_rx_en_ioctl)
+				dpa_ptp_store_rxstamp(priv, skb, vaddr);
+#endif
+
+#ifdef CONFIG_FSL_DPAA_TS
+			if (priv->ts_rx_en)
+				dpa_get_ts(priv, RX, skb_hwtstamps(skb), vaddr);
+#endif /* CONFIG_FSL_DPAA_TS */
 
 			dma_unmap_single(dpa_bp->dev, sg_addr, dpa_bp->size,
 				DMA_BIDIRECTIONAL);
