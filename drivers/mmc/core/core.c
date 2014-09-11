@@ -2522,6 +2522,7 @@ int mmc_detect_card_removed(struct mmc_host *host)
 {
 	struct mmc_card *card = host->card;
 	int ret;
+	unsigned long flags;
 
 	WARN_ON(!host->claimed);
 
@@ -2544,6 +2545,10 @@ int mmc_detect_card_removed(struct mmc_host *host)
 			 * Schedule a detect work as soon as possible to let a
 			 * rescan handle the card removal.
 			 */
+			spin_lock_irqsave(&host->lock, flags);
+			host->rescan_disable = 0;
+			spin_unlock_irqrestore(&host->lock, flags);
+
 			cancel_delayed_work(&host->detect);
 			_mmc_detect_change(host, 0, false);
 		}
