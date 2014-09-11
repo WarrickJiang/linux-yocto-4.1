@@ -68,13 +68,12 @@
  * @vaddr fragment must have been allocated with netdev_alloc_frag(),
  * specifically for fitting into @dpa_bp.
  */
-static void dpa_bp_recycle_frag(struct dpa_bp *dpa_bp, unsigned long vaddr)
+static void dpa_bp_recycle_frag(struct dpa_bp *dpa_bp, unsigned long vaddr,
+				int *count_ptr)
 {
 	struct bm_buffer bmb;
-	int *count_ptr;
 	dma_addr_t addr;
 
-	count_ptr = __this_cpu_ptr(dpa_bp->percpu_count);
 	addr = dma_map_single(dpa_bp->dev, (void *)vaddr, dpa_bp->size,
 			      DMA_BIDIRECTIONAL);
 	if (unlikely(dma_mapping_error(dpa_bp->dev, addr))) {
@@ -185,9 +184,8 @@ int dpa_bp_priv_seed(struct dpa_bp *dpa_bp)
 /* Add buffers/(pages) for Rx processing whenever bpool count falls below
  * REFILL_THRESHOLD.
  */
-int dpaa_eth_refill_bpools(struct dpa_bp *dpa_bp)
+int dpaa_eth_refill_bpools(struct dpa_bp *dpa_bp, int *countptr)
 {
-	int *countptr = __this_cpu_ptr(dpa_bp->percpu_count);
 	int count = *countptr;
 	int new_bufs;
 
@@ -418,7 +416,8 @@ static struct sk_buff *__hot contig_fd_to_skb(const struct dpa_priv_s *priv,
  * The page fragment holding the S/G Table is recycled here.
  */
 static struct sk_buff *__hot sg_fd_to_skb(const struct dpa_priv_s *priv,
-			       const struct qm_fd *fd, int *use_gro)
+			       const struct qm_fd *fd, int *use_gro,
+			       int *count_ptr)
 {
 	const struct qm_sg_entry *sgt;
 	dma_addr_t addr = qm_fd_addr(fd);
@@ -432,7 +431,6 @@ static struct sk_buff *__hot sg_fd_to_skb(const struct dpa_priv_s *priv,
 	int i;
 	const fm_prs_result_t *parse_results;
 	struct sk_buff *skb = NULL, *skb_tmp, **skbh;
-	int *count_ptr;
 
 	vaddr = phys_to_virt(addr);
 	DPA_BUG_ON(!IS_ALIGNED((unsigned long)vaddr, SMP_CACHE_BYTES));
@@ -446,7 +444,6 @@ static struct sk_buff *__hot sg_fd_to_skb(const struct dpa_priv_s *priv,
 
 		/* We use a single global Rx pool */
 		DPA_BUG_ON(dpa_bp != dpa_bpid2pool(sgt[i].bpid));
-		count_ptr = __this_cpu_ptr(dpa_bp->percpu_count);
 
 		sg_addr = qm_sg_addr(&sgt[i]);
 		sg_vaddr = phys_to_virt(sg_addr);
@@ -528,7 +525,7 @@ static struct sk_buff *__hot sg_fd_to_skb(const struct dpa_priv_s *priv,
 
 	/* recycle the SGT fragment */
 	DPA_BUG_ON(dpa_bp != dpa_bpid2pool(fd->bpid));
-	dpa_bp_recycle_frag(dpa_bp, (unsigned long)vaddr);
+	dpa_bp_recycle_frag(dpa_bp, (unsigned long)vaddr, count_ptr);
 	return skb;
 }
 
@@ -537,7 +534,8 @@ void __hot _dpa_rx(struct net_device *net_dev,
 		const struct dpa_priv_s *priv,
 		struct dpa_percpu_priv_s *percpu_priv,
 		const struct qm_fd *fd,
-		u32 fqid)
+		u32 fqid,
+		int *count_ptr)
 {
 	struct dpa_bp *dpa_bp;
 	struct sk_buff *skb;
@@ -546,7 +544,6 @@ void __hot _dpa_rx(struct net_device *net_dev,
 	unsigned int skb_len;
 	struct rtnl_link_stats64 *percpu_stats = &percpu_priv->stats;
 	int use_gro = net_dev->features & NETIF_F_GRO;
-	int *count_ptr;
 
 	if (unlikely(fd_status & FM_FD_STAT_RX_ERRORS) != 0) {
 		if (netif_msg_hw(priv) && net_ratelimit())
@@ -559,7 +556,6 @@ void __hot _dpa_rx(struct net_device *net_dev,
 
 	dpa_bp = priv->dpa_bp;
 	DPA_BUG_ON(dpa_bp != dpa_bpid2pool(fd->bpid));
-	count_ptr = __this_cpu_ptr(dpa_bp->percpu_count);
 
 	/* prefetch the first 64 bytes of the frame or the SGT start */
 	dma_unmap_single(dpa_bp->dev, addr, dpa_bp->size, DMA_BIDIRECTIONAL);
@@ -578,7 +574,7 @@ void __hot _dpa_rx(struct net_device *net_dev,
 		}
 		skb = contig_fd_to_skb(priv, fd, &use_gro);
 	} else
-		skb = sg_fd_to_skb(priv, fd, &use_gro);
+		skb = sg_fd_to_skb(priv, fd, &use_gro, count_ptr);
 
 	/* Account for either the contig buffer or the SGT buffer (depending on
 	 * which case we were in) having been removed from the pool.
@@ -626,7 +622,8 @@ _release_frame:
 }
 
 static int __hot skb_to_contig_fd(struct dpa_priv_s *priv,
-				  struct sk_buff *skb, struct qm_fd *fd)
+				  struct sk_buff *skb, struct qm_fd *fd,
+				  int *count_ptr)
 {
 	struct sk_buff **skbh;
 	dma_addr_t addr;
@@ -637,7 +634,6 @@ static int __hot skb_to_contig_fd(struct dpa_priv_s *priv,
 	unsigned char *buffer_start;
 
 #if (!defined(CONFIG_FSL_DPAA_TS) && !defined(CONFIG_FSL_DPAA_1588))
-	int *count_ptr = __this_cpu_ptr(dpa_bp->percpu_count);
 
 	/* Check recycling conditions; only if timestamp support is not
 	 * enabled, otherwise we need the fd back on tx confirmation
@@ -912,7 +908,7 @@ int __hot dpa_tx(struct sk_buff *skb, struct net_device *net_dev)
 			goto enomem;
 
 		/* Finally, create a contig FD from this skb */
-		err = skb_to_contig_fd(priv, skb, &fd);
+		err = skb_to_contig_fd(priv, skb, &fd, countptr);
 	}
 	if (unlikely(err < 0))
 		goto skb_to_fd_failed;
