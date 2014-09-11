@@ -400,17 +400,28 @@ static void esdhc_of_set_clock(struct sdhci_host *host, unsigned int clock)
 	}
 }
 
-static u32 clock;
 static void esdhc_of_platform_reset_enter(struct sdhci_host *host, u8 mask)
 {
-	if (host->quirks2 & SDHCI_QUIRK2_BROKEN_RESET_ALL)
-		clock = host->clock;
+	if ((host->quirks2 & SDHCI_QUIRK2_DISABLE_CLOCK_BEFORE_RESET) &&
+	    (mask & SDHCI_RESET_ALL)) {
+		u16 clk;
+
+		clk = esdhc_readw(host, SDHCI_CLOCK_CONTROL);
+		clk &= ~ESDHC_CLOCK_CRDEN;
+		esdhc_writew(host, clk, SDHCI_CLOCK_CONTROL);
+	}
 }
 
 static void esdhc_of_platform_reset_exit(struct sdhci_host *host, u8 mask)
 {
-	if (host->quirks2 & SDHCI_QUIRK2_BROKEN_RESET_ALL)
-		host->clock = clock;
+	if ((host->quirks2 & SDHCI_QUIRK2_DISABLE_CLOCK_BEFORE_RESET) &&
+	    (mask & SDHCI_RESET_ALL)) {
+		u16 clk;
+
+		clk = esdhc_readw(host, SDHCI_CLOCK_CONTROL);
+		clk |= ESDHC_CLOCK_CRDEN;
+		esdhc_writew(host, clk, SDHCI_CLOCK_CONTROL);
+	}
 }
 
 static void esdhc_of_platform_init(struct sdhci_host *host)
@@ -434,15 +445,15 @@ static void esdhc_of_platform_init(struct sdhci_host *host)
 	 * P2041-R1.0 P2041-R1.1 P2041-R2.0 P1010-R1.0
 	 */
 	if (((SVR_SOC_VER(svr) == SVR_T4240) && (SVR_REV(svr) == 0x10)) ||
-		((SVR_SOC_VER(svr) == SVR_B4860) && (SVR_REV(svr) == 0x10)) ||
-		((SVR_SOC_VER(svr) == SVR_B4860) && (SVR_REV(svr) == 0x20)) ||
-		((SVR_SOC_VER(svr) == SVR_B4420) && (SVR_REV(svr) == 0x10)) ||
-		((SVR_SOC_VER(svr) == SVR_B4420) && (SVR_REV(svr) == 0x20)) ||
-		((SVR_SOC_VER(svr) == SVR_P1010) && (SVR_REV(svr) == 0x10)) ||
-		((SVR_SOC_VER(svr) == SVR_P3041) && (SVR_REV(svr) == 0x10)) ||
-		((SVR_SOC_VER(svr) == SVR_P3041) && (SVR_REV(svr) == 0x20)) ||
-		((SVR_SOC_VER(svr) == SVR_P2041) && (SVR_REV(svr) <= 0x20)))
-		host->quirks2 |= SDHCI_QUIRK2_BROKEN_RESET_ALL;
+	    ((SVR_SOC_VER(svr) == SVR_B4860) && (SVR_REV(svr) == 0x10)) ||
+	    ((SVR_SOC_VER(svr) == SVR_B4860) && (SVR_REV(svr) == 0x20)) ||
+	    ((SVR_SOC_VER(svr) == SVR_B4420) && (SVR_REV(svr) == 0x10)) ||
+	    ((SVR_SOC_VER(svr) == SVR_B4420) && (SVR_REV(svr) == 0x20)) ||
+	    ((SVR_SOC_VER(svr) == SVR_P1010) && (SVR_REV(svr) == 0x10)) ||
+	    ((SVR_SOC_VER(svr) == SVR_P3041) && (SVR_REV(svr) == 0x10)) ||
+	    ((SVR_SOC_VER(svr) == SVR_P3041) && (SVR_REV(svr) == 0x20)) ||
+	    ((SVR_SOC_VER(svr) == SVR_P2041) && (SVR_REV(svr) <= 0x20)))
+		host->quirks2 |= SDHCI_QUIRK2_DISABLE_CLOCK_BEFORE_RESET;
 }
 
 static void esdhc_pltfm_set_bus_width(struct sdhci_host *host, int width)
