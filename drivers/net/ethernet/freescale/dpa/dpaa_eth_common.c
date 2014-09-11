@@ -74,8 +74,7 @@ static const char fsl_qman_frame_queues[][25] = {
 
 /* A set of callbacks for hooking into the fastpath at different points. */
 struct dpaa_eth_hooks_s dpaa_eth_hooks;
-/*
- * This function should only be called on the probe paths, since it makes no
+/* This function should only be called on the probe paths, since it makes no
  * effort to guarantee consistency of the destination hooks structure.
  */
 void fsl_dpaa_eth_set_hooks(struct dpaa_eth_hooks_s *hooks)
