@@ -59,15 +59,15 @@ _GLOBAL(has_pw20_altivec_idle)
 
 	/* PW20 & AltiVec idle feature only exists for E6500 */
 	mfspr	r0, SPRN_PVR
-	rlwinm	r4, r0, 16, 16, 31
+	rlwinm	r11, r0, 16, 16, 31
 	lis	r12, 0
 	ori	r12, r12, PVR_VER_E6500@l
-	cmpw	r4, r12
+	cmpw	r11, r12
 	bne	2f
 
 	/* Fix erratum, e6500 rev1 does not support PW20 & AltiVec idle */
-	rlwinm	r4, r0, 0, 16, 31
-	cmpwi	r4, 0x20
+	rlwinm	r11, r0, 0, 16, 31
+	cmpwi	r11, 0x20
 	blt	2f
 	li	r3, 1
 2:
