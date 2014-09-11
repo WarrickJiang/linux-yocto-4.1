@@ -97,6 +97,9 @@ typedef enum dpaa_eth_hook_result (*dpaa_eth_confirm_hook_t)(
 /* used in napi related functions */
 extern u16 qman_portal_max;
 
+/* from dpa-ethtool.c */
+extern const struct ethtool_ops dpa_ethtool_ops;
+
 /* Various hooks used for unit-testing and/or fastpath optimizations.
  * Currently only one set of such hooks is supported.
  */

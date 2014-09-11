@@ -86,8 +86,6 @@ void fsl_dpaa_eth_set_hooks(struct dpaa_eth_hooks_s *hooks)
 }
 EXPORT_SYMBOL(fsl_dpaa_eth_set_hooks);
 
-extern const struct ethtool_ops dpa_ethtool_ops;
-
 int dpa_netdev_init(struct device_node *dpa_node,
 		struct net_device *net_dev,
 		const uint8_t *mac_addr,
