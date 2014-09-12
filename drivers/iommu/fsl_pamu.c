@@ -66,6 +66,13 @@ static const struct of_device_id l3_device_ids[] = {
 	{}
 };
 
+/* Table for matching FMAN rx port compatible */
+static const struct of_device_id fman_device_ids[] = {
+	{ .compatible = "fsl,fman-port-10g-rx", },
+	{ .compatible = "fsl,fman-port-1g-rx", },
+	{}
+};
+
 /* maximum subwindows permitted per liodn */
 static u32 max_subwindow_count;
 
@@ -699,10 +706,7 @@ found_cpu_node:
 	return ~(u32)0;
 }
 
-/*
- * Identify if the PAACT table entry belongs to QMAN, BMAN or QMAN Portal or
- * FMAN ports
- */
+/* Identify if the PAACT table entry belongs to QMAN, BMAN or QMAN Portal */
 #define QMAN_PAACE 1
 #define QMAN_PORTAL_PAACE 2
 #define BMAN_PAACE 3
@@ -710,8 +714,8 @@ found_cpu_node:
 #define PMAN_PAACE 5
 
 /**
- * Setup operation mapping and stash destinations for QMAN and QMAN portal.
- * Also set operation mapping and stash destinations for FMAN ports.
+ * Setup operation mapping and stash destinations for DPAA (QMAN, QMAN portal
+ * FMAN, BMAN) and PMAN.
  * Memory accesses to QMAN and BMAN private memory need not be coherent, so
  * clear the PAACE entry coherency attribute for them.
  */
@@ -741,7 +745,7 @@ static void setup_dpaa_paace(struct paace *ppaace, int  paace_type)
 		ppaace->op_encode.index_ot.omi = OMI_FMAN;
 		/*Set frame stashing for the L3 cache */
 		set_bf(ppaace->impl_attr, PAACE_IA_CID,
-		       get_stash_id(IOMMU_ATTR_CACHE_L3, 0));
+		       get_stash_id(PAMU_ATTR_CACHE_L3, 0));
 		break;
 	case PMAN_PAACE:
 		set_bf(ppaace->impl_attr, PAACE_IA_OTM, PAACE_OTM_INDEXED);
@@ -774,11 +778,7 @@ static void setup_omt(struct ome *omt)
 	/* Configure OMI_FMAN */
 	ome = &omt[OMI_FMAN];
 	ome->moe[IOE_READ_IDX]  = EOE_VALID | EOE_READI;
-#ifdef CONFIG_FSL_FMAN_CPC_STASH
-	ome->moe[IOE_WRITE_IDX] = EOE_VALID | EOE_WWSA;
-#else
 	ome->moe[IOE_WRITE_IDX] = EOE_VALID | EOE_WRITE;
-#endif
 
 	/* Configure OMI_QMAN private */
 	ome = &omt[OMI_QMAN_PRIV];
@@ -909,8 +909,7 @@ static void setup_liodns(void)
 			if (of_device_is_compatible(node, "fsl,pman"))
 				setup_dpaa_paace(ppaace, PMAN_PAACE);
 #ifdef CONFIG_FSL_FMAN_CPC_STASH
-			if (of_device_is_compatible(node, "fsl,fman-port-10g-rx") ||
-			    of_device_is_compatible(node, "fsl,fman-port-1g-rx"))
+			if (of_match_node(fman_device_ids, node))
 				setup_dpaa_paace(ppaace, FMAN_PAACE);
 #endif
 			mb();
