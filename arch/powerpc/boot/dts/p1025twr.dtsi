@@ -68,25 +68,25 @@
 			label = "NOR Linux Kernel Image";
 		};
 
-		partition@400000 {
-			/* 56.75MB for Root file System */
-			reg = <0x00600000 0x038c0000>;
-			label = "NOR Root File System";
+		partition@600000 {
+			/* 56.5MB for JFFS2 based Root file System */
+			reg = <0x00600000 0x03880000>;
+			label = "NOR JFFS2 Root File System";
 		};
 
-		partition@ec0000 {
+		partition@3e80000 {
 			/* This location must not be altered  */
 			/* 256KB for QE ucode firmware*/
-			reg = <0x03ec0000 0x00040000>;
+			reg = <0x03e80000 0x00040000>;
 			label = "NOR QE microcode firmware";
 			read-only;
 		};
 
-		partition@f00000 {
+		partition@3ec0000 {
 			/* This location must not be altered  */
-			/* 512KB for u-boot Bootloader Image */
+			/* 768KB for u-boot Bootloader Image */
 			/* 512KB for u-boot Environment Variables */
-			reg = <0x03f00000 0x00100000>;
+			reg = <0x03ec0000 0x00140000>;
 			label = "NOR U-Boot Image";
 			read-only;
 		};
