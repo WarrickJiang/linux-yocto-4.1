@@ -300,7 +300,7 @@ void pamu_free_subwins(int liodn)
 }
 
 /*
- * Function used for updating stash destination for the coressponding
+ * Function used for updating a specifc PAACE field for the coressponding
  * LIODN.
  */
 int  pamu_update_paace_field(int liodn, u32 subwin, int field, u32 value)
@@ -309,7 +309,7 @@ int  pamu_update_paace_field(int liodn, u32 subwin, int field, u32 value)
 
 	paace = pamu_get_ppaace(liodn);
 	if (!paace) {
-		pr_debug("Invalid liodn entry\n");
+		pr_err("Invalid liodn entry\n");
 		return -ENOENT;
 	}
 	if (subwin) {
@@ -559,64 +559,55 @@ void get_ome_index(u32 *omi_index, struct device *dev)
  * We get the stash id programmed by SDOS from the shared
  * cluster L2 l2csr1 register.
  */
-static u32 get_dsp_l2_stash_id(u32 cluster)
+static u32 get_dsp_l2_stash_id(u32 vcpu)
 {
 	const u32 *prop;
 	struct device_node *node;
-	struct device_node *dsp_cpu_node;
 	struct ccsr_cluster_l2 *l2cache_regs;
 	u32 stash_id;
 
-	for_each_compatible_node(node, NULL, "fsl,sc3900-cluster") {
+	for_each_compatible_node(node, NULL, "fsl,sc3900") {
 		prop = of_get_property(node, "reg", 0);
 		if (!prop) {
-			pr_err("missing reg property in dsp cluster %s\n",
-				node->full_name);
+			pr_err("missing reg property in dsp cpu node %s\n",
+			       node->full_name);
 			of_node_put(node);
 			return ~(u32)0;
 		}
 
-		if (*prop == cluster) {
-			dsp_cpu_node = of_find_compatible_node(node, NULL, "fsl,sc3900");
-			if (!dsp_cpu_node) {
-				pr_err("missing dsp cpu node in dsp cluster %s\n",
-					node->full_name);
-				of_node_put(node);
-				return ~(u32)0;
-			}
+		if (*prop != vcpu)
+			continue;
+
+		prop = of_get_property(node, "next-level-cache", 0);
+		if (!prop) {
+			pr_err("missing next level cache property in dsp cpu %s\n",
+			       node->full_name);
 			of_node_put(node);
-
-			prop = of_get_property(dsp_cpu_node, "next-level-cache", 0);
-			if (!prop) {
-				pr_err("missing next level cache property in dsp cpu %s\n",
-					node->full_name);
-				of_node_put(dsp_cpu_node);
-				return ~(u32)0;
-			}
-			of_node_put(dsp_cpu_node);
-
-			node = of_find_node_by_phandle(*prop);
-			if (!node) {
-				pr_err("Invalid node for cache hierarchy %s\n",
-					node->full_name);
-				return ~(u32)0;
-			}
-
-			l2cache_regs = of_iomap(node, 0);
-			if (!l2cache_regs) {
-				pr_err("failed to map cluster l2 cache registers %s\n",
-					node->full_name);
-				of_node_put(node);
-				return ~(u32)0;
-			}
-
-			stash_id = in_be32(&l2cache_regs->l2csr1) &
-					 CLUSTER_L2_STASH_MASK;
-			of_node_put(node);
-			iounmap(l2cache_regs);
-
-			return stash_id;
+			return ~(u32)0;
 		}
+		of_node_put(node);
+
+		node = of_find_node_by_phandle(*prop);
+		if (!node) {
+			pr_err("Invalid node for cache hierarchy %s\n",
+			       node->full_name);
+			return ~(u32)0;
+		}
+
+		l2cache_regs = of_iomap(node, 0);
+		if (!l2cache_regs) {
+			pr_err("failed to map cluster l2 cache registers %s\n",
+			       node->full_name);
+			of_node_put(node);
+			return ~(u32)0;
+		}
+
+		stash_id = in_be32(&l2cache_regs->l2csr1) &
+				 CLUSTER_L2_STASH_MASK;
+		of_node_put(node);
+		iounmap(l2cache_regs);
+
+		return stash_id;
 	}
 	return ~(u32)0;
 }
@@ -639,9 +630,10 @@ u32 get_stash_id(u32 stash_dest_hint, u32 vcpu)
 	int i;
 
 	/* check for DSP L2 cache */
-	if (stash_dest_hint == IOMMU_ATTR_CACHE_DSP_L2) {
+	if (stash_dest_hint == PAMU_ATTR_CACHE_DSP_L2) {
 		return get_dsp_l2_stash_id(vcpu);
 	}
+
 	/* Fastpath, exit early if L3/CPC cache is target for stashing */
 	if (stash_dest_hint == PAMU_ATTR_CACHE_L3) {
 		node = of_find_matching_node(NULL, l3_device_ids);

@@ -517,21 +517,6 @@ static int pamu_set_domain_geometry(struct fsl_dma_domain *dma_domain,
 	return ret;
 }
 
-/* Update stash destination for all LIODNs associated with the domain */
-static int update_domain_stash(struct fsl_dma_domain *dma_domain, u32 val)
-{
-	struct device_domain_info *info;
-	int ret = 0;
-
-	list_for_each_entry(info, &dma_domain->devices, link) {
-		ret = update_liodn_stash(info->liodn, dma_domain, val);
-		if (ret)
-			break;
-	}
-
-	return ret;
-}
-
 /* Update domain mappings for all LIODNs associated with the domain */
 static int update_domain_mapping(struct fsl_dma_domain *dma_domain, u32 wnd_nr)
 {
@@ -841,7 +826,7 @@ static int configure_domain_op_map(struct fsl_dma_domain *dma_domain,
 	unsigned long flags;
 	struct pamu_attr_info attr_info;
 	int ret, i;
-	struct iommu_omi_attribute *omi_attr = data;
+	struct pamu_omi_attribute *omi_attr = data;
 
 	spin_lock_irqsave(&dma_domain->domain_lock, flags);
 
@@ -899,7 +884,7 @@ static int configure_domain_stash(struct fsl_dma_domain *dma_domain, void *data)
 					    stash_attr->cpu);
 	if ((~stash_id == 0) ||
 		 check_attr_window(stash_attr->window, dma_domain)) {
-		pr_debug("Invalid stash attributes\n");
+		pr_err("Invalid stash attributes\n");
 		spin_unlock_irqrestore(&dma_domain->domain_lock, flags);
 		return -EINVAL;
 	}
@@ -908,13 +893,15 @@ static int configure_domain_stash(struct fsl_dma_domain *dma_domain, void *data)
 		wnd = &dma_domain->win_arr[0];
 		for (i = 0; i < dma_domain->win_cnt; i++) {
 			wnd[i].stash_id = stash_id;
-			memcpy(&wnd[i].stash_attr, stash_attr, sizeof(struct iommu_stash_attribute));
+			memcpy(&wnd[i].stash_attr, stash_attr,
+			       sizeof(struct pamu_stash_attribute));
 			wnd[i].stash_attr.window = i;
 		}
 	} else {
 		wnd = &dma_domain->win_arr[stash_attr->window];
 		wnd->stash_id = stash_id;
-		memcpy(&wnd->stash_attr, stash_attr, sizeof(struct iommu_stash_attribute));
+		memcpy(&wnd->stash_attr,
+		       stash_attr, sizeof(struct pamu_stash_attribute));
 	}
 
 	attr_info.window = stash_attr->window;
@@ -974,6 +961,9 @@ static int fsl_pamu_set_domain_attr(struct iommu_domain *domain,
 	case DOMAIN_ATTR_PAMU_OP_MAP:
 		ret = configure_domain_op_map(dma_domain, data);
 		break;
+	case DOMAIN_ATTR_FSL_PAMU_OP_MAP:
+		ret = configure_domain_op_map(dma_domain, data);
+		break;
 	default:
 		pr_debug("Unsupported attribute type\n");
 		ret = -EINVAL;
@@ -996,8 +986,8 @@ static int fsl_pamu_get_domain_attr(struct iommu_domain *domain,
 	case DOMAIN_ATTR_FSL_PAMUV1:
 		*(int *)data = DOMAIN_ATTR_FSL_PAMUV1;
 		break;
-	case DOMAIN_ATTR_PAMU_STASH: {
-		struct iommu_stash_attribute *stash_attr = data;
+	case DOMAIN_ATTR_FSL_PAMU_STASH: {
+		struct pamu_stash_attribute *stash_attr = data;
 		struct dma_window *wnd;
 
 		if (stash_attr->window >= dma_domain->win_cnt ||
@@ -1005,11 +995,12 @@ static int fsl_pamu_get_domain_attr(struct iommu_domain *domain,
 			return -EINVAL;
 
 		wnd = &dma_domain->win_arr[stash_attr->window];
-		memcpy(stash_attr, &wnd->stash_attr, sizeof(struct iommu_stash_attribute));
+		memcpy(stash_attr, &wnd->stash_attr,
+		       sizeof(struct pamu_stash_attribute));
 		break;
 	}
-	case DOMAIN_ATTR_PAMU_OP_MAP: {
-		struct iommu_omi_attribute *omi_attr = data;
+	case DOMAIN_ATTR_FSL_PAMU_OP_MAP: {
+		struct pamu_omi_attribute *omi_attr = data;
 		struct dma_window *wnd;
 
 		if (omi_attr->window >= dma_domain->win_cnt ||
@@ -1173,6 +1164,16 @@ static int fsl_pamu_add_device(struct device *dev)
 static void fsl_pamu_remove_device(struct device *dev)
 {
 	iommu_group_remove_device(dev);
+}
+
+static void dma_domain_init_windows(struct fsl_dma_domain *dma_domain)
+{
+	int i;
+
+	for (i = 0; i < dma_domain->win_cnt; i++) {
+		dma_domain->win_arr[i].stash_id = ~(u32)0;
+		dma_domain->win_arr[i].omi = ~(u32)0;
+	}
 }
 
 static void dma_domain_init_windows(struct fsl_dma_domain *dma_domain)

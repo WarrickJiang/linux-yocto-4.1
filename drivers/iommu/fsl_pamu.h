@@ -322,6 +322,12 @@ struct paace {
 	u32 reserved[8];			/* not currently implemented */
 };
 
+enum  paace_field {
+	PAACE_STASH_FIELD,
+	PAACE_OMI_FIELD,
+	PAACE_FIELD_MAX,
+};
+
 /* OME : Operation mapping entry
  * MOE : Mapped Operation Encodings
  * The operation mapping table is table containing operation mapping entries (OME).
@@ -389,12 +395,6 @@ struct ome {
 #define EOE_WWSAO       0x1d    /* Write with stash allocate only */
 #define EOE_WWSAOL      0x1e    /* Write with stash allocate only and lock */
 #define EOE_VALID       0x80
-
-enum  paace_field {
-	PAACE_STASH_FIELD,
-	PAACE_OMI_FIELD,
-	PAACE_FIELD_MAX,
-};
 
 /* Function prototypes */
 int pamu_domain_init(void);
