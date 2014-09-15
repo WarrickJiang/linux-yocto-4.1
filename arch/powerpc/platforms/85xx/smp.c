@@ -29,6 +29,7 @@
 #include <asm/fsl_guts.h>
 #include <asm/code-patching.h>
 #include <asm/cputhreads.h>
+#include <asm/fsl_pm.h>
 
 #include <sysdev/fsl_soc.h>
 #include <sysdev/mpic.h>
@@ -48,9 +49,11 @@ static u64 timebase;
 static int tb_req;
 static int tb_valid;
 static u32 cur_booting_core;
-static bool rcpmv2;
 
 extern void fsl_enable_threads(void);
+
+/* specify the cpu PM state when cpu dies, PH15/NAP is the default */
+int qoriq_cpu_die_state = E500_PM_PH15;
 
 #ifdef CONFIG_PPC_E500MC
 /* get a physical mask of online cores and booting core */
@@ -74,25 +77,10 @@ static inline u32 get_phy_cpu_mask(void)
 	return mask;
 }
 
-static void __cpuinit mpc85xx_timebase_freeze(int freeze)
+static void mpc85xx_timebase_freeze(int freeze)
 {
-	u32 *addr;
-	u32 mask = get_phy_cpu_mask();
-
-	if (rcpmv2)
-		addr = &((struct ccsr_rcpm_v2 *)guts_regs)->pctbenr;
-	else
-		addr = &((struct ccsr_rcpm *)guts_regs)->ctbenr;
-
-	if (freeze)
-		clrbits32(addr, mask);
-	else
-		setbits32(addr, mask);
-
-	/* read back to push the previous write */
-	in_be32(addr);
+	qoriq_pm_ops->freeze_time_base(freeze);
 }
-
 #else
 static void __cpuinit mpc85xx_timebase_freeze(int freeze)
 {
@@ -212,36 +200,27 @@ static void __cpuinit smp_85xx_mach_cpu_die(void)
 {
 	unsigned int cpu = smp_processor_id();
 
-	local_irq_disable();
+	hard_irq_disable();
 	idle_task_exit();
-	mb();
+
+	if (qoriq_pm_ops->irq_mask)
+		qoriq_pm_ops->irq_mask(cpu);
 
 	mtspr(SPRN_TCR, 0);
+	mtspr(SPRN_TSR, mfspr(SPRN_TSR));
+
+	generic_set_cpu_dead(cpu);
 
 	if (cur_cpu_spec && cur_cpu_spec->cpu_flush_caches)
 		cur_cpu_spec->cpu_flush_caches();
 
-	generic_set_cpu_dead(cpu);
+	if (is_core_down(cpu))
+		qoriq_pm_ops->cpu_enter_state(cpu, qoriq_cpu_die_state);
 
 	while (1)
 		;
 }
 
-void platform_cpu_die(unsigned int cpu)
-{
-	unsigned int hw_cpu = get_hard_smp_processor_id(cpu);
-	struct ccsr_rcpm __iomem *rcpm;
-
-	if (rcpmv2 && is_core_down(cpu)) {
-		/* enter PH20 status */
-		setbits32(&((struct ccsr_rcpm_v2 *)guts_regs)->pcph20setr,
-				1 << cpu_core_index_of_thread(hw_cpu));
-	} else if (!rcpmv2) {
-		rcpm = guts_regs;
-		/* Core Nap Operation */
-		setbits32(&rcpm->cnapcr, 1 << hw_cpu);
-	}
-}
 #else
 /* for e500v1 and e500v2 */
 static void smp_85xx_mach_cpu_die(void)
@@ -316,10 +295,6 @@ static int smp_85xx_kick_cpu(int nr)
 	int hw_cpu = get_hard_smp_processor_id(nr);
 	int ioremappable;
 	int ret = 0;
-#ifdef CONFIG_PPC_E500MC
-	struct ccsr_rcpm __iomem *rcpm = guts_regs;
-	struct ccsr_rcpm_v2 __iomem *rcpm_v2 = guts_regs;
-#endif
 
 	WARN_ON(nr < 0 || nr >= NR_CPUS);
 	WARN_ON(hw_cpu < 0 || hw_cpu >= NR_CPUS);
@@ -388,15 +363,6 @@ static int smp_85xx_kick_cpu(int nr)
 		out_be32(&spin_table->addr_l, 0);
 		flush_spin_table(spin_table);
 
-#ifdef CONFIG_PPC_E500MC
-		/* Due to an erratum, wake the core before reset. */
-		if (rcpmv2)
-			setbits32(&rcpm_v2->pcph20clrr,
-				1 << cpu_core_index_of_thread(hw_cpu));
-		else
-			clrbits32(&rcpm->cnapcr, 1 << hw_cpu);
-#endif
-
 		/*
 		 * We don't set the BPTR register here since it already points
 		 * to the boot page properly.
@@ -419,6 +385,11 @@ static int smp_85xx_kick_cpu(int nr)
 
 		/*  clear the acknowledge status */
 		__secondary_hold_acknowledge = -1;
+
+#ifdef CONFIG_PPC_E500MC
+		if (qoriq_pm_ops->irq_unmask)
+			qoriq_pm_ops->irq_unmask(nr);
+#endif
 	}
 	flush_spin_table(spin_table);
 	out_be32(&spin_table->pir, hw_cpu);
@@ -617,9 +588,6 @@ void __init mpc85xx_smp_init(void)
 
 	np = of_find_matching_node(NULL, mpc85xx_smp_guts_ids);
 	if (np) {
-		if (of_device_is_compatible(np, "fsl,qoriq-rcpm-2"))
-			rcpmv2 = true;
-
 		guts_regs = of_iomap(np, 0);
 		of_node_put(np);
 		if (!guts_regs) {
@@ -632,6 +600,8 @@ void __init mpc85xx_smp_init(void)
 #ifdef CONFIG_HOTPLUG_CPU
 		ppc_md.cpu_die = smp_85xx_mach_cpu_die;
 #endif
+		if (!strcmp(cur_cpu_spec->cpu_name, "e6500"))
+			qoriq_cpu_die_state = E500_PM_PH20;
 	}
 
 	smp_ops = &smp_85xx_ops;
