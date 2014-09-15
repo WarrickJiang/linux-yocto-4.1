@@ -12,7 +12,7 @@
 /include/ "fsl/p1010si-pre.dtsi"
 
 / {
-	model = "fsl,P1010RDB";
+	model = "fsl,P1010RDB-PA";
 	compatible = "fsl,P1010RDB";
 
 	/include/ "p1010rdb_32b.dtsi"
