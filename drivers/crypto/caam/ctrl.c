@@ -15,6 +15,10 @@
 #include "desc_constr.h"
 #include "error.h"
 
+#ifdef CONFIG_FSL_QMAN
+#include "qi.h"
+#endif
+
 /*
  * Descriptor to instantiate RNG State Handle 0 in normal mode and
  * load the JDKEK, TDKEK and TDSK registers
@@ -274,10 +278,6 @@ static int deinstantiate_rng(struct device *ctrldev, int state_handle_mask)
 	return ret;
 }
 
-#ifdef CONFIG_FSL_QMAN
-#include "qi.h"
-#endif
-
 static int caam_remove(struct platform_device *pdev)
 {
 	struct device *ctrldev;
@@ -295,14 +295,13 @@ static int caam_remove(struct platform_device *pdev)
 			of_device_unregister(ctrlpriv->jrpdev[ring]);
 	}
 
-	/* De-initialize RNG state handles initialized by this driver. */
-	if (ctrlpriv->rng4_sh_init)
-		deinstantiate_rng(ctrldev, ctrlpriv->rng4_sh_init);
-
 #ifdef CONFIG_FSL_QMAN
 	if (ctrlpriv->qidev)
 		caam_qi_shutdown(ctrlpriv->qidev);
 #endif
+	/* De-initialize RNG state handles initialized by this driver. */
+	if (ctrlpriv->rng4_sh_init)
+		deinstantiate_rng(ctrldev, ctrlpriv->rng4_sh_init);
 
 	/* Shut down debug views */
 #ifdef CONFIG_DEBUG_FS
