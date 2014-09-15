@@ -246,7 +246,7 @@ static unsigned long pamu_get_fspi_and_allocate(u32 subwin_cnt)
 }
 
 /*
- * Defaul PPAACE settings for an LIODN.
+ * Default PPAACE settings for an LIODN.
  */
 static void setup_default_ppaace(struct paace *ppaace)
 {
@@ -275,6 +275,8 @@ void enable_default_dma_window(int liodn)
 	memset(ppaace, 0, sizeof(struct paace));
 
 	setup_default_ppaace(ppaace);
+
+	/* Ensure that all other stores to the ppaace complete first */
 	mb();
 	pamu_enable_liodn(liodn);
 }
