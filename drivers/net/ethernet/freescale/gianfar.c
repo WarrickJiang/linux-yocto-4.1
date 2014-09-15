@@ -2049,14 +2049,6 @@ static void gfar_configure_serdes(struct net_device *dev)
 		return;
 	}
 
-	/* If the link is already up, we must already be ok, and don't need to
-	 * configure and reset the TBI<->SerDes link.  Maybe U-Boot configured
-	 * everything for us?  Resetting it takes the link down and requires
-	 * several seconds for it to come back.
-	 */
-	if (phy_read(tbiphy, MII_BMSR) & BMSR_LSTATUS)
-		return;
-
 	/* Single clk mode, mii mode off(for serdes communication) */
 	phy_write(tbiphy, MII_TBICON, TBICON_CLK_SELECT);
 
