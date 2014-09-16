@@ -646,6 +646,26 @@ static u32 get_dsp_l2_stash_id(u32 vcpu)
 	return ~(u32)0;
 }
 
+static bool has_erratum_a007907(void)
+{
+	u32 svr = mfspr(SPRN_SVR);
+
+	switch (SVR_SOC_VER(svr)) {
+	case SVR_B4860:
+	case SVR_B4420:
+	case SVR_T4240:
+	case SVR_T4160:
+		return SVR_REV(svr) <= 0x20;
+
+	case SVR_T2080:
+	case SVR_T2081:
+		return SVR_REV(svr) == 0x10;
+
+	default:
+		return false;
+	};
+}
+
 /**
  * get_stash_id - Returns stash destination id corresponding to a
  *                cache type and vcpu.
@@ -662,6 +682,10 @@ u32 get_stash_id(u32 stash_dest_hint, u32 vcpu)
 	u32 cache_level;
 	int len, found = 0;
 	int i;
+
+	if (stash_dest_hint == PAMU_ATTR_CACHE_L1 &&
+	    has_erratum_a007907())
+		stash_dest_hint = PAMU_ATTR_CACHE_L2;
 
 	/* check for DSP L2 cache */
 	if (stash_dest_hint == PAMU_ATTR_CACHE_DSP_L2) {
