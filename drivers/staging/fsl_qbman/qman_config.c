@@ -360,12 +360,15 @@ static void qm_set_corenet_initiator(struct qman *qm)
 		CONFIG_FSL_QMAN_CI_SCHED_CFG_BMAN_W);
 }
 
-static void qm_get_version(struct qman *qm, u16 *id, u8 *major, u8 *minor)
+static void qm_get_version(struct qman *qm, u16 *id, u8 *major, u8 *minor,
+			u8 *cfg)
 {
 	u32 v = qm_in(IP_REV_1);
+	u32 v2 = qm_in(IP_REV_2);
 	*id = (v >> 16);
 	*major = (v >> 8) & 0xff;
 	*minor = v & 0xff;
+	*cfg = v2 & 0xff;
 }
 
 static void qm_set_memory(struct qman *qm, enum qm_memory memory, u64 ba,
@@ -511,7 +514,7 @@ static int __init fsl_qman_init(struct device_node *node)
 	const char *s;
 	int ret, standby = 0;
 	u16 id;
-	u8 major, minor;
+	u8 major, minor, cfg;
 	ret = of_address_to_resource(node, 0, &res);
 	if (ret) {
 		pr_err("Can't get %s property '%s'\n", node->full_name, "reg");
@@ -532,8 +535,8 @@ static int __init fsl_qman_init(struct device_node *node)
 	regs = ioremap(res.start, res.end - res.start + 1);
 	qm = qm_create(regs);
 	qm_node = node;
-	qm_get_version(qm, &id, &major, &minor);
-	pr_info("Qman ver:%04x,%02x,%02x\n", id, major, minor);
+	qm_get_version(qm, &id, &major, &minor, &cfg);
+	pr_info("Qman ver:%04x,%02x,%02x,%02x\n", id, major, minor, cfg);
 	if (!qman_ip_rev) {
 		if ((major == 1) && (minor == 0))
 			qman_ip_rev = QMAN_REV10;
@@ -551,6 +554,7 @@ static int __init fsl_qman_init(struct device_node *node)
 			pr_warn("unknown Qman version, default to rev1.1\n");
 			qman_ip_rev = QMAN_REV11;
 		}
+		qman_ip_cfg = cfg;
 	}
 
 	if (standby) {
