@@ -622,7 +622,7 @@ _release_frame:
 
 static int __hot skb_to_contig_fd(struct dpa_priv_s *priv,
 				  struct sk_buff *skb, struct qm_fd *fd,
-				  int *count_ptr)
+				  int *count_ptr, int *offset)
 {
 	struct sk_buff **skbh;
 	dma_addr_t addr;
@@ -656,6 +656,7 @@ static int __hot skb_to_contig_fd(struct dpa_priv_s *priv,
 		dma_dir = DMA_BIDIRECTIONAL;
 
 		DPA_WRITE_SKB_PTR(skb, skbh, buffer_start, -1);
+		*offset = skb_headroom(skb) - fd->offset;
 	} else
 #endif
 	{
@@ -829,7 +830,7 @@ int __hot dpa_tx(struct sk_buff *skb, struct net_device *net_dev)
 	int err = 0;
 	const int queue_mapping = dpa_get_queue_mapping(skb);
 	const bool nonlinear = skb_is_nonlinear(skb);
-	int *countptr;
+	int *countptr, offset = 0;
 
 	/* If there is a Tx hook, run it. */
 	if (dpaa_eth_hooks.tx &&
@@ -906,7 +907,7 @@ int __hot dpa_tx(struct sk_buff *skb, struct net_device *net_dev)
 			goto enomem;
 
 		/* Finally, create a contig FD from this skb */
-		err = skb_to_contig_fd(priv, skb, &fd, countptr);
+		err = skb_to_contig_fd(priv, skb, &fd, countptr, &offset);
 	}
 	if (unlikely(err < 0))
 		goto skb_to_fd_failed;
@@ -917,7 +918,7 @@ int __hot dpa_tx(struct sk_buff *skb, struct net_device *net_dev)
 		 * but we need the skb to look as if returned by build_skb().
 		 * We need to manually adjust the tailptr as well.
 		 */
-		skb->data = skb->head;
+		skb->data = skb->head + offset;
 		skb_reset_tail_pointer(skb);
 
 		(*countptr)++;
