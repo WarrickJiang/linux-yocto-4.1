@@ -63,12 +63,15 @@ static int qoriq_suspend_enter(suspend_state_t state)
 
 static int qoriq_suspend_valid(suspend_state_t state)
 {
+	set_pm_suspend_state(state);
+
 	if (state == PM_SUSPEND_STANDBY && (sleep_modes & FSL_SLEEP))
 		return 1;
 
 	if (state == PM_SUSPEND_MEM && (sleep_modes & FSL_DEEP_SLEEP))
 		return 1;
 
+	set_pm_suspend_state(PM_SUSPEND_ON);
 	return 0;
 }
 
@@ -82,6 +85,7 @@ static int qoriq_suspend_begin(suspend_state_t state)
 
 static void qoriq_suspend_end(void)
 {
+	set_pm_suspend_state(PM_SUSPEND_ON);
 	fsl_dp_iounmap();
 }
 
@@ -110,6 +114,7 @@ static int __init qoriq_suspend_init(void)
 	}
 
 	suspend_set_ops(&qoriq_suspend_ops);
+	set_pm_suspend_state(PM_SUSPEND_ON);
 
 	return 0;
 }
