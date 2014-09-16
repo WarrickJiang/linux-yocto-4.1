@@ -323,3 +323,44 @@ notrace void __init relocate_init(u64 dt_ptr, phys_addr_t start)
 }
 #endif
 #endif
+
+#if defined(CONFIG_PPC64)
+void book3e_tlb_lock(void)
+{
+	struct paca_struct *paca = get_paca();
+	struct tlb_core_data *percore;
+	unsigned long tmp;
+
+	if (!(paca->tcd_ptr & 1))
+		return;
+
+	percore = (struct tlb_core_data *)(paca->tcd_ptr & ~1UL);
+
+	asm volatile("1: lbarx %0, 0, %1;\n"
+		     "cmpdi %0, 0;\n"
+		     "bne 2f;\n"
+		     "li %0, 1;\n"
+		     "stbcx. %0, 0, %1;\n"
+		     "bne 1b;\n"
+		     "b 3f;\n"
+		     "2: lbzx %0, 0, %1;\n"
+		     "cmpdi %0, 0;\n"
+		     "bne 2b;\n"
+		     "b 1b;\n"
+		     "3:" : "=&r" (tmp) : "r" (&percore->lock) : "memory");
+}
+
+void book3e_tlb_unlock(void)
+{
+	struct paca_struct *paca = get_paca();
+	struct tlb_core_data *percore;
+
+	if (!(paca->tcd_ptr & 1))
+		return;
+
+	percore = (struct tlb_core_data *)(paca->tcd_ptr & ~1UL);
+
+	isync();
+	percore->lock = 0;
+}
+#endif
