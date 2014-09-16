@@ -220,6 +220,12 @@
 #define TLBILX_T_CLASS2			6
 #define TLBILX_T_CLASS3			7
 
+/* LRATCFG bits */
+#define LRATCFG_ASSOC		0xFF000000
+#define LRATCFG_LASIZE		0x00FE0000
+#define LRATCFG_LPID		0x00002000
+#define LRATCFG_NENTRY		0x00000FFF
+
 #ifndef __ASSEMBLY__
 #include <asm/bug.h>
 
@@ -297,6 +303,7 @@ struct tlb_core_data {
 
 	/* For software way selection, as on Freescale TLB1 */
 	u8 esel_next, esel_max, esel_first;
+	u8 lrat_next, lrat_max;
 };
 
 #ifdef CONFIG_PPC64
