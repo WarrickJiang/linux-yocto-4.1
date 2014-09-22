@@ -1384,8 +1384,7 @@ static int __init __cold fm_port_load(void)
 		return -ENODEV;
 	}
 
-	printk(KERN_CRIT "Freescale FM Ports module (" __DATE__ ":" __TIME__
-	       ")\n");
+	printk(KERN_CRIT "Freescale FM Ports module \n");
 
 	return 0;
 }
