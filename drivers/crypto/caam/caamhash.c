@@ -1764,7 +1764,7 @@ static int caam_hash_cra_init(struct crypto_tfm *tfm)
 					 HASH_MSG_LEN + SHA256_DIGEST_SIZE,
 					 HASH_MSG_LEN + 64,
 					 HASH_MSG_LEN + SHA512_DIGEST_SIZE };
-	int ret = 0;
+	int ret;
 	u8 op_id;
 
 	/*
@@ -1793,7 +1793,8 @@ static int caam_hash_cra_init(struct crypto_tfm *tfm)
 				 sizeof(struct caam_hash_state));
 
 	ret = ahash_set_sh_desc(ahash);
-	return ret;
+	if (ret == 0)
+		return ret;
 
 out_err:
 	caam_jr_free(ctx->jrdev);
