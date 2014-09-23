@@ -175,7 +175,7 @@ void __init initialise_paca(struct paca_struct *new_paca, int cpu)
 
 #ifdef CONFIG_PPC_BOOK3E
 	/* For now -- if we have threads this will be adjusted later */
-	new_paca->tcd_ptr = &new_paca->tcd;
+	new_paca->tcd_ptr = (uintptr_t)&new_paca->tcd;
 #endif
 }
 

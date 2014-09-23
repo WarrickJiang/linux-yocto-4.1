@@ -16,7 +16,7 @@ static inline int tlb1_next(void)
 	struct tlb_core_data *tcd;
 	int this, next;
 
-	tcd = paca->tcd_ptr;
+	tcd = (struct tlb_core_data *)(paca->tcd_ptr & ~1UL);
 	this = tcd->esel_next;
 
 	next = this + 1;

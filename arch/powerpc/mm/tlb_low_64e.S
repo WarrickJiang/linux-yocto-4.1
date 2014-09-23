@@ -123,7 +123,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_EMB_HV)
 	oris	r11,r10,_PAGE_ACCESSED@h
 
 BEGIN_FTR_SECTION
-	ld	r10,PACA_TLB_PER_CORE_PTR(r13)
+	ld	r10,PACA_TCD_PTR(r13)
 END_FTR_SECTION_IFSET(CPU_FTR_SMT)
 
 	TLB_MISS_STATS_SAVE_INFO_BOLTED
@@ -148,7 +148,7 @@ tlb_miss_common_bolted:
 	 */
 BEGIN_FTR_SECTION
 	mtocrf	0x01,r10
-	addi	r10,r10,PACA_TLB_LOCK-1 /* -1 to compensate for low bit set */
+	addi	r10,r10,TCD_LOCK-1 /* -1 to compensate for low bit set */
 	bf	31,1f		/* no lock if TLB_PER_CORE_HAS_LOCK clear */
 2:	lbarx	r15,0,r10
 	cmpdi	r15,0
@@ -239,11 +239,11 @@ END_FTR_SECTION_IFSET(CPU_FTR_SMT)
 tlb_miss_done_bolted:
 	.macro	tlb_unlock_bolted
 BEGIN_FTR_SECTION
-	ld	r10,PACA_TLB_PER_CORE_PTR(r13)
+	ld	r10,PACA_TCD_PTR(r13)
 	bf	31,1f
 	li	r15,0
 	isync
-	stb	r15,PACA_TLB_LOCK-1(r10)
+	stb	r15,TCD_LOCK-1(r10)
 1:
 END_FTR_SECTION_IFSET(CPU_FTR_SMT)
 	.endm
@@ -289,7 +289,7 @@ itlb_miss_fault_bolted:
 	bne-	itlb_miss_fault_bolted
 
 BEGIN_FTR_SECTION
-	ld	r10,PACA_TLB_PER_CORE_PTR(r13)
+	ld	r10,PACA_TCD_PTR(r13)
 END_FTR_SECTION_IFSET(CPU_FTR_SMT)
 	li	r11,_PAGE_PRESENT|_PAGE_EXEC	/* Base perm */
 

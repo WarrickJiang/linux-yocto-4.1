@@ -111,8 +111,14 @@ struct paca_struct {
 	pgd_t *pgd __aligned(0x40); /* Current PGD */
 	pgd_t *kernel_pgd;		/* Kernel PGD */
 
-	/* Shared by all threads of a core -- points to tcd of first thread */
-	struct tlb_core_data *tcd_ptr;
+	/*
+	* Points to the tlb_per_core of the first thread on this core.
+	* The low bit is set if there is more than one thread per core
+	* (a bit gross, but avoids an extra load in the TLB miss handler,
+	* or atomic instructions where none are needed).
+	*/
+#define TLB_PER_CORE_HAS_LOCK 1
+	uintptr_t tcd_ptr;
 
 	/*
 	 * We can have up to 3 levels of reentrancy in the TLB miss handler,

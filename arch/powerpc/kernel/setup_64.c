@@ -108,20 +108,12 @@ static void setup_tlb_core_data(void)
 	for_each_possible_cpu(cpu) {
 		int first = cpu_first_thread_sibling(cpu);
 
-		paca[cpu].tcd_ptr = &paca[first].tcd;
+		paca[cpu].tcd_ptr = (uintptr_t)&paca[first].tcd;
 
-		/*
-		 * If we have threads, we need either tlbsrx.
-		 * or e6500 tablewalk mode, or else TLB handlers
-		 * will be racy and could produce duplicate entries.
-		 */
+		/* If we have threads but no tlbsrx., use a per-core lock */
 		if (smt_enabled_at_boot >= 2 &&
-		    !mmu_has_feature(MMU_FTR_USE_TLBRSRV) &&
-		    book3e_htw_mode != PPC_HTW_E6500) {
-			/* Should we panic instead? */
-			WARN_ONCE("%s: unsupported MMU configuration -- expect problems\n",
-				  __func__);
-		}
+		    !mmu_has_feature(MMU_FTR_USE_TLBRSRV))
+			paca[cpu].tcd_ptr |= TLB_PER_CORE_HAS_LOCK;
 	}
 }
 #else
