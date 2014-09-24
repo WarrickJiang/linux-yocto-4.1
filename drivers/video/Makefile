@@ -7,6 +7,7 @@ obj-y				  += backlight/
 
 obj-y				  += fbdev/
 obj-$(CONFIG_FB_FSL_SII902X)      += fsl-sii902x.o
+obj-$(CONFIG_FB_FSL_DCU)          += fsl-dcu-fb.o
 
 obj-$(CONFIG_VIDEOMODE_HELPERS) += display_timing.o videomode.o
 ifeq ($(CONFIG_OF),y)
