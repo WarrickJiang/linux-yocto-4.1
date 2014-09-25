@@ -453,15 +453,15 @@
 			big-endian;
 		};
 
-       	sai2: sai@2b60000 {
-       		compatible = "fsl,vf610-sai";
-       		reg = <0x0 0x2b60000 0x0 0x10000>;
-       		interrupts = <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>;
-       		clocks = <&platform_clk 1>;
-       		clock-names = "sai";
-       		dma-names = "tx", "rx";
-       		dmas = <&edma0 1 45>,
-       		       <&edma0 1 44>;
+		sai2: sai@2b60000 {
+			compatible = "fsl,vf610-sai";
+	       		reg = <0x0 0x2b60000 0x0 0x10000>;
+			interrupts = <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&platform_clk 1>;
+	       		clock-names = "sai";
+			dma-names = "tx", "rx";
+			dmas = <&edma0 1 45>,
+				<&edma0 1 44>;
 			big-endian-regs;
 			status = "disabled";
 		};
@@ -492,7 +492,7 @@
 			status = "disabled";
 		};
 
-       	mdio0: mdio@2d24000 {
+		mdio0: mdio@2d24000 {
 			compatible = "gianfar";
 	       		device_type = "mdio";
 	       		#address-cells = <1>;
@@ -585,22 +585,14 @@
 	       		phy_type = "ulpi";
        	};
 
-       	usb@3100000 {
-			compatible = "fsl,fsl-dwc3";
-			#address-cells = <2>;
-			#size-cells = <2>;
-			ranges;
+	usb3@3100000 {
+			compatible = "snps,dwc3";
+			reg = <0x0 0x3100000 0x0 0x10000>;
+			interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>;
+			dr_mode = "host";
+		};
+	};
 
-			dwc3 {
-				compatible = "snps,dwc3";
-				reg = <0x0 0x3100000 0x0 0x10000>;
-				interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>;
-				dr_mode = "host";
-				maximum-speed = "high-speed";
-       	};
-       };
-;
-+
 	dcsr {
 		#address-cells = <1>;
 		#size-cells = <1>;
