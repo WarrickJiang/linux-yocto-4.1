@@ -578,6 +578,7 @@ void __hot _dpa_rx(struct net_device *net_dev,
 	DPA_BUG_ON((fd->format != qm_fd_contig) && (fd->format != qm_fd_sg));
 
 	if (likely(fd->format == qm_fd_contig)) {
+#if defined(CONFIG_FSL_FMAN_TEST)
 		/* Execute the Rx processing hook, if it exists. */
 		if (dpaa_eth_hooks.rx_default &&
 			dpaa_eth_hooks.rx_default((void *)fd, net_dev, fqid)
@@ -585,6 +586,7 @@ void __hot _dpa_rx(struct net_device *net_dev,
 			/* won't count the rx bytes in */
 			return;
 		}
+#endif
 		skb = contig_fd_to_skb(priv, fd, &use_gro);
 	} else
 		skb = sg_fd_to_skb(priv, fd, &use_gro, count_ptr);
@@ -853,13 +855,13 @@ int __hot dpa_tx(struct sk_buff *skb, struct net_device *net_dev)
 	const int queue_mapping = dpa_get_queue_mapping(skb);
 	const bool nonlinear = skb_is_nonlinear(skb);
 	int *countptr, offset = 0;
-
+#if defined(CONFIG_FSL_FMAN_TEST)
 	/* If there is a Tx hook, run it. */
 	if (dpaa_eth_hooks.tx &&
 		dpaa_eth_hooks.tx(skb, net_dev) == DPAA_ETH_STOLEN)
 		/* won't update any Tx stats */
 		return NETDEV_TX_OK;
-
+#endif
 	priv = netdev_priv(net_dev);
 	/* Non-migratable context, safe to use __this_cpu_ptr */
 	percpu_priv = __this_cpu_ptr(priv->percpu_priv);

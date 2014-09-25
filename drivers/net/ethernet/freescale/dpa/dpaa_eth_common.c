@@ -80,7 +80,7 @@ static const char fsl_qman_frame_queues[][25] = {
 	[RX] = "fsl,qman-frame-queues-rx",
 	[TX] = "fsl,qman-frame-queues-tx"
 };
-
+#if defined(CONFIG_FSL_FMAN_TEST)
 /* A set of callbacks for hooking into the fastpath at different points. */
 struct dpaa_eth_hooks_s dpaa_eth_hooks;
 /* This function should only be called on the probe paths, since it makes no
@@ -94,7 +94,7 @@ void fsl_dpaa_eth_set_hooks(struct dpaa_eth_hooks_s *hooks)
 		pr_err("NULL pointer to hooks!\n");
 }
 EXPORT_SYMBOL(fsl_dpaa_eth_set_hooks);
-
+#endif
 int dpa_netdev_init(struct device_node *dpa_node,
 		struct net_device *net_dev,
 		const uint8_t *mac_addr,

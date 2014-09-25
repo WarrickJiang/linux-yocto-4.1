@@ -95,6 +95,7 @@ extern u16 qman_portal_max;
 /* from dpa_ethtool.c */
 extern const struct ethtool_ops dpa_ethtool_ops;
 
+#if defined(CONFIG_FSL_FMAN_TEST)
 /* Various hooks used for unit-testing and/or fastpath optimizations.
  * Currently only one set of such hooks is supported.
  */
@@ -125,7 +126,7 @@ struct dpaa_eth_hooks_s {
 void fsl_dpaa_eth_set_hooks(struct dpaa_eth_hooks_s *hooks);
 
 extern struct dpaa_eth_hooks_s dpaa_eth_hooks;
-
+#endif
 
 int dpa_netdev_init(struct device_node *dpa_node,
 		struct net_device *net_dev,
