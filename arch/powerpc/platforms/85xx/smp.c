@@ -494,6 +494,11 @@ static int smp_85xx_kick_cpu(int nr)
 
 	pr_debug("smp_85xx_kick_cpu: kick CPU #%d\n", nr);
 
+	/*
+	 * Set cur_booting_core before kick cpu to avoid
+	 * take_timebase to be called with old value.
+	 */
+	cur_booting_core = hw_cpu;
 #ifdef CONFIG_PPC64
 	/* Threads don't use the spin table */
 	if (cpu_thread_in_core(nr) != 0) {
@@ -653,7 +658,6 @@ static int smp_85xx_kick_cpu(int nr)
 #endif
 	/* Corresponding to generic_set_cpu_dead() */
 	generic_set_cpu_up(nr);
-	cur_booting_core = hw_cpu;
 
 out:
 	local_irq_restore(flags);
