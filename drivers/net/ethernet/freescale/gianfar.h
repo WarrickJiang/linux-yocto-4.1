@@ -1566,30 +1566,31 @@ static inline struct txfcb *gfar_add_fcb(struct sk_buff *skb)
 }
 
 static inline void gfar_tx_checksum(struct sk_buff *skb, struct txfcb *fcb,
-								int fcb_length)
+				    int fcb_length)
 {
 	/* If we're here, it's a IP packet with a TCP or UDP
-	* payload.  We set it to checksum, using a pseudo-header
-	* we provide
-	*/
+	 * payload.  We set it to checksum, using a pseudo-header
+	 * we provide
+	 */
 	u8 flags = TXFCB_DEFAULT;
 
 	/* Tell the controller what the protocol is
-	* And provide the already calculated phcs
-	*/
+	 * And provide the already calculated phcs
+	 */
 	if (ip_hdr(skb)->protocol == IPPROTO_UDP) {
 		flags |= TXFCB_UDP;
-		fcb->phcs = udp_hdr(skb)->check;
+		fcb->phcs = (__force __be16)(udp_hdr(skb)->check);
 	} else
-		fcb->phcs = tcp_hdr(skb)->check;
+		fcb->phcs = (__force __be16)(tcp_hdr(skb)->check);
 
 	/* l3os is the distance between the start of the
-	* frame (skb->data) and the start of the IP hdr.
-	* l4os is the distance between the start of the
-	* l3 hdr and the l4 hdr
-	*/
-	fcb->l3os = (u16)(skb_network_offset(skb) - fcb_length);
+	 * frame (skb->data) and the start of the IP hdr.
+	 * l4os is the distance between the start of the
+	 * l3 hdr and the l4 hdr
+	 */
+	fcb->l3os = (u8)(skb_network_offset(skb) - fcb_length);
 	fcb->l4os = skb_network_header_len(skb);
+
 	fcb->flags = flags;
 }
 
@@ -1612,7 +1613,7 @@ static inline void gfar_init_rxbdp(struct gfar_priv_rx_q *rx_queue,
 {
 	u32 lstatus;
 
-	bdp->bufPtr = buf;
+	bdp->bufPtr = cpu_to_be32(buf);
 
 	lstatus = BD_LFLAG(RXBD_EMPTY | RXBD_INTERRUPT);
 	if (bdp == rx_queue->rx_bd_base + rx_queue->rx_ring_size - 1)
@@ -1620,7 +1621,7 @@ static inline void gfar_init_rxbdp(struct gfar_priv_rx_q *rx_queue,
 
 	eieio();
 
-	bdp->lstatus = lstatus;
+	bdp->lstatus = cpu_to_be32(lstatus);
 }
 
 static inline void gfar_new_rxbdp(struct gfar_priv_rx_q *rx_queue,
@@ -1678,7 +1679,8 @@ static inline void gfar_rx_checksum(struct sk_buff *skb, struct rxfcb *fcb)
 	 * were verified, then we tell the kernel that no
 	 * checksumming is necessary.  Otherwise, it is [FIXME]
 	 */
-	if ((fcb->flags & RXFCB_CSUM_MASK) == (RXFCB_CIP | RXFCB_CTU))
+	if ((be16_to_cpu(fcb->flags) & RXFCB_CSUM_MASK) ==
+	    (RXFCB_CIP | RXFCB_CTU))
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	else
 		skb_checksum_none_assert(skb);

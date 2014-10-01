@@ -167,10 +167,12 @@ static void gfar_set_mac_for_addr(struct net_device *dev, int num,
 				  const u8 *addr);
 static int gfar_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 
+#ifdef CONFIG_FSL_85XX_CACHE_SRAM
 bool gfar_l2sram_en = true;
 module_param(gfar_l2sram_en, bool, 0444);
 MODULE_PARM_DESC(gfar_l2sram_en,
 		 "Enable allocation to L2 SRAM.");
+#endif
 
 MODULE_AUTHOR("Freescale Semiconductor, Inc");
 MODULE_DESCRIPTION("Gianfar Ethernet Driver");
@@ -251,7 +253,6 @@ static int gfar_alloc_skb_resources(struct net_device *ndev)
 {
 	void *vaddr = NULL;
 	dma_addr_t addr;
-	phys_addr_t paddr;
 	int i, j, k;
 	struct gfar_private *priv = netdev_priv(ndev);
 	struct device *dev = priv->dev;
@@ -267,7 +268,9 @@ static int gfar_alloc_skb_resources(struct net_device *ndev)
 		priv->total_rx_ring_size += priv->rx_queue[i]->rx_ring_size;
 
 	/* Allocate memory for the buffer descriptors */
+#ifdef CONFIG_FSL_85XX_CACHE_SRAM
 	if (priv->bd_l2sram_en) {
+		phys_addr_t paddr;
 		vaddr = mpc85xx_cache_sram_alloc(BD_RING_REG_SZ(priv),
 						 &paddr, L1_CACHE_BYTES);
 		if (vaddr)
@@ -279,6 +282,7 @@ static int gfar_alloc_skb_resources(struct net_device *ndev)
 			priv->bd_l2sram_en = 0;
 		}
 	}
+#endif
 
 	if (!priv->bd_l2sram_en)
 		vaddr = dma_alloc_coherent(dev, BD_RING_REG_SZ(priv),
@@ -736,27 +740,20 @@ static int gfar_parse_group(struct device_node *np,
 		grp->tx_bit_map = (DEFAULT_MAPPING >> priv->num_grps);
 
 		ret = of_property_read_u32(np, "fsl,rx-bit-map", &rxq_mask);
-		if (!ret) {
-			grp->rx_bit_map = rxq_mask ?
-			rxq_mask : (DEFAULT_MAPPING >> priv->num_grps);
-		}
+		if (!ret)
+			grp->rx_bit_map = rxq_mask;
 
 		ret = of_property_read_u32(np, "fsl,tx-bit-map", &txq_mask);
-		if (!ret) {
-			grp->tx_bit_map = txq_mask ?
-			txq_mask : (DEFAULT_MAPPING >> priv->num_grps);
-		}
+		if (!ret)
+			grp->tx_bit_map = txq_mask;
 
+#ifndef CONFIG_AS_FASTPATH
 		if (priv->poll_mode == GFAR_SQ_POLLING) {
 			/* One Q per interrupt group: Q0 to G0, Q1 to G1 */
 			grp->rx_bit_map = (DEFAULT_MAPPING >> priv->num_grps);
 			grp->tx_bit_map = (DEFAULT_MAPPING >> priv->num_grps);
-	#ifdef CONFIG_AS_FASTPATH
-			grp->rx_bit_map = rxq_mask ?
-			*rxq_mask : (DEFAULT_MAPPING >> priv->num_grps);
-			grp->tx_bit_map = txq_mask ?
-			*txq_mask : (DEFAULT_MAPPING >> priv->num_grps);
-	#endif
+		}
+#endif
 	} else {
 		grp->rx_bit_map = 0xFF;
 		grp->tx_bit_map = 0xFF;
@@ -937,10 +934,12 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 			goto err_grp_init;
 	}
 
+#ifdef CONFIG_FSL_85XX_CACHE_SRAM
 	if (gfar_l2sram_en) {
 		/* try to alloc the BD rings to L2 SRAM */
 		priv->bd_l2sram_en = 1;
 	}
+#endif
 
 	stash = of_find_property(np, "bd-stash", NULL);
 
@@ -2232,9 +2231,11 @@ static void free_skb_resources(struct gfar_private *priv)
 			free_skb_rx_queue(rx_queue);
 	}
 
+#ifdef CONFIG_FSL_85XX_CACHE_SRAM
 	if (priv->bd_l2sram_en)
 		mpc85xx_cache_sram_free(priv->tx_queue[0]->tx_bd_base);
 	else
+#endif
 		dma_free_coherent(priv->dev, BD_RING_REG_SZ(priv),
 				  priv->tx_queue[0]->tx_bd_base,
 				  priv->tx_queue[0]->tx_bd_dma_base);
@@ -2614,7 +2615,7 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		 */
 		vlan_ctrl = gfar_read(&regs->dfvlan);
 		vlan_ctrl &= ~0xFFFF;
-		vlan_ctrl |= (fcb->vlctl & 0xFFFF);
+		vlan_ctrl |= (be16_to_cpu(fcb->vlctl) & 0xFFFF);
 		gfar_write(&regs->dfvlan, vlan_ctrl);
 #endif
 	}
