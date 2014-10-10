@@ -2795,7 +2795,7 @@ static void gfar_timeout(struct net_device *dev)
 
 static void gfar_recycle_skb(struct sk_buff *skb)
 {
-	struct sk_buff_head *h = &__get_cpu_var(skb_recycle_list);
+	struct sk_buff_head *h = &get_cpu_var(skb_recycle_list);
 	int skb_size = SKB_DATA_ALIGN(GFAR_RXB_REC_SZ + NET_SKB_PAD);
 
 	if (skb_queue_len(h) < DEFAULT_RX_RING_SIZE &&
