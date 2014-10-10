@@ -50,8 +50,6 @@ static int tb_req;
 static int tb_valid;
 static u32 cur_booting_core;
 
-extern void fsl_enable_threads(void);
-
 /* specify the cpu PM state when cpu dies, PH15/NAP is the default */
 int qoriq_cpu_die_state = E500_PM_PH15;
 
@@ -218,7 +216,7 @@ static void __cpuinit smp_85xx_mach_cpu_die(void)
 	if (cur_cpu_spec && cur_cpu_spec->cpu_flush_caches)
 		cur_cpu_spec->cpu_flush_caches();
 
-	if (is_core_down(cpu))
+	if (qoriq_pm_ops->cpu_enter_state)
 		qoriq_pm_ops->cpu_enter_state(cpu, qoriq_cpu_die_state);
 
 	if (cpu_has_feature(CPU_FTR_SMT)) {
@@ -227,9 +225,6 @@ static void __cpuinit smp_85xx_mach_cpu_die(void)
 		mb();
 		mtspr(SPRN_TENC, cpu);
 	}
-
-	while (1)
-		;
 }
 
 #else
@@ -378,6 +373,13 @@ static int smp_85xx_kick_cpu(int nr)
 		flush_spin_table(spin_table);
 
 #ifdef CONFIG_PPC_E500MC
+		/*
+		 * For e6500-based platform, wake up core from
+		 * low-power state before reset core.
+		 */
+		if (!strcmp(cur_cpu_spec->cpu_name, "e6500"))
+			arch_send_call_function_single_ipi(nr);
+
 		/*
 		 * Errata-A-006568. If SOC-rcpm is V1, we need enable
 		 * cpu first, T4240rev2 and later Soc has been fixed.
@@ -657,8 +659,13 @@ void __init mpc85xx_smp_init(void)
 #ifdef CONFIG_HOTPLUG_CPU
 		ppc_md.cpu_die = smp_85xx_mach_cpu_die;
 #endif
+		/*
+		 * For e6500-based platform, put thread into PW10 state gives
+		 * it a chance to enter PW20 state when threads of the same
+		 * core are in PW10 state.
+		 */
 		if (!strcmp(cur_cpu_spec->cpu_name, "e6500"))
-			qoriq_cpu_die_state = E500_PM_PH20;
+			qoriq_cpu_die_state = E500_PM_PW10;
 	}
 
 	smp_ops = &smp_85xx_ops;
