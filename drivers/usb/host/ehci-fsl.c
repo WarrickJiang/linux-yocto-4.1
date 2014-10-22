@@ -57,10 +57,10 @@ static bool usb_phy_clk_valid(struct usb_hcd *hcd)
 {
 	void __iomem *non_ehci = hcd->regs;
 	bool ret = true;
-
+#ifndef CONFIG_CRASH_DUMP
 	if (!(in_be32(non_ehci + FSL_SOC_USB_CTRL) & PHY_CLK_VALID))
 		ret = false;
-
+#endif
 	return ret;
 }
 
