@@ -72,7 +72,7 @@ config FSL_XGMAC_MDIO
 
 config UCC_GETH
 	tristate "Freescale QE Gigabit Ethernet"
-	depends on QUICC_ENGINE
+	depends on QUICC_ENGINE && PPC
 	select FSL_PQ_MDIO
 	select PHYLIB
 	---help---
