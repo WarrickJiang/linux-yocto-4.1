@@ -235,6 +235,7 @@ static int caam_jr_dequeue(struct napi_struct *napi, int budget)
 	struct caam_drv_private_jr *jrp = dev_get_drvdata(dev);
 	int cleaned = 0;
 
+	dev = jrp->dev;
 	while (rd_reg32(&jrp->rregs->outring_used) && cleaned < budget) {
 		caam_jr_consume(dev);
 		cleaned++;
