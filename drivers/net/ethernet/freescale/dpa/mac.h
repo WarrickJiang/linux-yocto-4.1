@@ -96,6 +96,10 @@ struct mac_device {
 	int (*fm_rtc_set_alarm)(struct fm *fm_dev, uint32_t id, uint64_t time);
 	int (*fm_rtc_set_fiper)(struct fm *fm_dev, uint32_t id,
 				uint64_t fiper);
+#ifdef CONFIG_PTP_1588_CLOCK_DPAA
+	int (*fm_rtc_enable_interrupt)(struct fm *fm_dev, uint32_t events);
+	int (*fm_rtc_disable_interrupt)(struct fm *fm_dev, uint32_t events);
+#endif
 	int (*set_wol)(struct fm_port *port, struct fm_mac_dev *fm_mac_dev,
 			bool en);
 	int (*get_stats)(struct mac_device *mac_dev, uint64_t *p_Statistics);
