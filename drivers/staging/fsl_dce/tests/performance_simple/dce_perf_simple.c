@@ -566,6 +566,11 @@ static int validate_module_params(void)
 		return -EINVAL;
 	}
 
+	if (block_size == 0) {
+		pr_err("Invalide block_size value of 0\n");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
