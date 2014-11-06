@@ -608,13 +608,13 @@ static inline void _dpa_assign_wq(struct dpa_fq *fq)
 #ifdef CONFIG_FMAN_PFC
 #define dpa_get_queue_mapping(skb) \
 	(((skb)->priority < CONFIG_FMAN_PFC_COS_COUNT) ? \
-		((skb)->priority * dpa_num_cpus + smp_processor_id()) : \
+		((skb)->priority * dpa_num_cpus + raw_smp_processor_id()) : \
 		((CONFIG_FMAN_PFC_COS_COUNT - 1) * \
 			dpa_num_cpus + smp_processor_id()));
 
 #else
 #define dpa_get_queue_mapping(skb) \
-	smp_processor_id()
+	raw_smp_processor_id()
 #endif
 #else
 /* Use the queue selected by XPS */
