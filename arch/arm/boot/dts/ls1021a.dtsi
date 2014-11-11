@@ -69,6 +69,7 @@
 		gpio1 = &gpio2;
 		gpio2 = &gpio3;
 		gpio3 = &gpio4;
+		crypto = &crypto;
 
         };
 
