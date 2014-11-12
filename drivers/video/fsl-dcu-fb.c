@@ -844,8 +844,10 @@ static int fsl_dcu_init_fbinfo(struct fb_info *info)
 		fb_add_videomode(&fb_vm, &info->modelist);
 	}
 
+	display_timings_release(timings);
 	return 0;
 put_timings_node:
+	display_timings_release(timings);
 	of_node_put(timings_np);
 put_display_node:
 	of_node_put(display_np);
