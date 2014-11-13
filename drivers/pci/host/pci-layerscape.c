@@ -180,7 +180,7 @@ static int ls_add_pcie_port(struct ls_pcie *pcie)
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
 		ret = devm_request_irq(pp->dev, pp->msi_irq,
 					ls_pcie_msi_irq_handler,
-					IRQF_SHARED, "ls-pcie-msi", pp);
+					IRQF_NO_THREAD, "ls-pcie-msi", pp);
 		if (ret) {
 			dev_err(pp->dev, "failed to request msi irq\n");
 			return ret;
