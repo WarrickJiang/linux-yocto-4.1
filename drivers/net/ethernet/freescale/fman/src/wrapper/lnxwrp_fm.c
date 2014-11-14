@@ -1102,6 +1102,13 @@ static int fm_remove(struct platform_device *of_dev)
     return 0;
 }
 
+#if defined(CONFIG_KEXEC)
+static void fm_shutdown(struct platform_device *of_dev)
+{
+	fm_remove(of_dev);
+}
+#endif
+
 static const struct of_device_id fm_match[] = {
     {
         .compatible    = "fsl,fman"
@@ -1168,7 +1175,7 @@ static struct platform_driver fm_driver = {
     },
     .probe          = fm_probe,
 #if defined(CONFIG_KEXEC)
-    .shutdown       = fm_remove,
+    .shutdown       = fm_shutdown,
 #endif
     .remove         = fm_remove
 
