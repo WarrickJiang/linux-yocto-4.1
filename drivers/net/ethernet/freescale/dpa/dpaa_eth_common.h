@@ -152,6 +152,9 @@ int dpa_get_ts(const struct dpa_priv_s *priv, enum port_type rx_tx,
 #endif /* CONFIG_FSL_DPAA_TS */
 int dpa_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 int __cold dpa_remove(struct platform_device *of_dev);
+#if defined(CONFIG_KEXEC)
+void __cold dpa_shutdown(struct platform_device *of_dev);
+#endif
 struct mac_device * __cold __must_check
 __attribute__((nonnull)) dpa_mac_probe(struct platform_device *_of_dev);
 int dpa_set_mac_address(struct net_device *net_dev, void *addr);
@@ -167,7 +170,8 @@ void dpa_bpid2pool_map(int bpid, struct dpa_bp *dpa_bp);
 bool dpa_bpid2pool_use(int bpid);
 void dpa_bp_drain(struct dpa_bp *bp);
 #ifdef CONFIG_FSL_DPAA_ETH_USE_NDO_SELECT_QUEUE
-u16 dpa_select_queue(struct net_device *net_dev, struct sk_buff *skb);
+u16 dpa_select_queue(struct net_device *net_dev, struct sk_buff *skb,
+	void *accel_priv, select_queue_fallback_t fallback);
 #endif
 struct dpa_fq *dpa_fq_alloc(struct device *dev,
 				   const struct fqid_cell *fqids,
