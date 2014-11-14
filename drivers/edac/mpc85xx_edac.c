@@ -23,6 +23,7 @@
 
 #include <linux/of_platform.h>
 #include <linux/of_device.h>
+#include <linux/memblock.h>
 #include "edac_module.h"
 #include "edac_core.h"
 #include "mpc85xx_edac.h"
@@ -1007,6 +1008,15 @@ static void mpc85xx_init_csrows(struct mem_ctl_info *mci)
 	}
 }
 
+static unsigned long mpc85xx_ctl_page_to_phys(struct mem_ctl_info *mci,
+					      unsigned long page)
+{
+	if (memblock_is_reserved(page << PAGE_SHIFT))
+		return -1UL;
+
+	return page;
+}
+
 static int mpc85xx_mc_err_probe(struct platform_device *op)
 {
 	struct mem_ctl_info *mci;
@@ -1082,7 +1092,7 @@ static int mpc85xx_mc_err_probe(struct platform_device *op)
 	if (edac_op_state == EDAC_OPSTATE_POLL)
 		mci->edac_check = mpc85xx_mc_check;
 
-	mci->ctl_page_to_phys = NULL;
+	mci->ctl_page_to_phys = mpc85xx_ctl_page_to_phys;
 
 	mci->scrub_mode = SCRUB_SW_SRC;
 
