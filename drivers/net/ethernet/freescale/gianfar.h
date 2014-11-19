@@ -1067,7 +1067,13 @@ struct gfar {
 	u8	res24g[4];
 	u32	rfbptr7; /* 0x.c7c - Last free RxBD pointer for ring 7 */
 	u8	res24h[4];
+#if defined CONFIG_FSL_GIANFAR_1588
+	u8	res24x[380];
+	struct gfar_regs_1588 regs_1588;
+#else
 	u8	res24x[556];
+#endif
+
 	u32	isrg0;		/* 0x.eb0 - Interrupt steering group 0 register */
 	u32	isrg1;		/* 0x.eb4 - Interrupt steering group 1 register */
 	u32	isrg2;		/* 0x.eb8 - Interrupt steering group 2 register */
