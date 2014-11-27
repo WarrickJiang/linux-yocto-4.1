@@ -2283,6 +2283,8 @@ static noinline struct qm_eqcr_entry *wait_eq_start(struct qman_portal **p,
 {
 	struct qm_eqcr_entry *eq;
 	if (flags & QMAN_ENQUEUE_FLAG_WAIT_INT)
+		/* NB: return NULL if signal occurs before completion. Signal
+		 * can occur during return. Caller must check for signal */
 		wait_event_interruptible(affine_queue,
 			(eq = __wait_eq_start(p, irqflags, fq, fd, flags)));
 	else
@@ -2309,6 +2311,8 @@ static noinline struct qm_eqcr_entry *wait_p_eq_start(struct qman_portal *p,
 {
 	struct qm_eqcr_entry *eq;
 	if (flags & QMAN_ENQUEUE_FLAG_WAIT_INT)
+		/* NB: return NULL if signal occurs before completion. Signal
+		 * can occur during return. Caller must check for signal */
 		wait_event_interruptible(affine_queue,
 			(eq = __wait_p_eq_start(p, irqflags, fq, fd, flags)));
 	else
@@ -2341,6 +2345,8 @@ int qman_p_enqueue(struct qman_portal *p, struct qman_fq *fq,
 	if (unlikely((flags & QMAN_ENQUEUE_FLAG_WAIT) &&
 			(flags & QMAN_ENQUEUE_FLAG_WAIT_SYNC))) {
 		if (flags & QMAN_ENQUEUE_FLAG_WAIT_INT)
+			/* NB: return success even if signal occurs before
+			 * condition is true. pvb_commit guarantees success */
 			wait_event_interruptible(affine_queue,
 					(p->eqci_owned != fq));
 		else
@@ -2375,6 +2381,8 @@ int qman_enqueue(struct qman_fq *fq, const struct qm_fd *fd, u32 flags)
 	if (unlikely((flags & QMAN_ENQUEUE_FLAG_WAIT) &&
 			(flags & QMAN_ENQUEUE_FLAG_WAIT_SYNC))) {
 		if (flags & QMAN_ENQUEUE_FLAG_WAIT_INT)
+			/* NB: return success even if signal occurs before
+			 * condition is true. pvb_commit guarantees success */
 			wait_event_interruptible(affine_queue,
 					(p->eqci_owned != fq));
 		else
@@ -2423,6 +2431,8 @@ int qman_p_enqueue_orp(struct qman_portal *p, struct qman_fq *fq,
 	if (unlikely((flags & QMAN_ENQUEUE_FLAG_WAIT) &&
 			(flags & QMAN_ENQUEUE_FLAG_WAIT_SYNC))) {
 		if (flags & QMAN_ENQUEUE_FLAG_WAIT_INT)
+			/* NB: return success even if signal occurs before
+			 * condition is true. pvb_commit guarantees success */
 			wait_event_interruptible(affine_queue,
 					(p->eqci_owned != fq));
 		else
@@ -2472,6 +2482,8 @@ int qman_enqueue_orp(struct qman_fq *fq, const struct qm_fd *fd, u32 flags,
 	if (unlikely((flags & QMAN_ENQUEUE_FLAG_WAIT) &&
 			(flags & QMAN_ENQUEUE_FLAG_WAIT_SYNC))) {
 		if (flags & QMAN_ENQUEUE_FLAG_WAIT_INT)
+			/* NB: return success even if signal occurs before
+			 * condition is true. pvb_commit guarantees success */
 			wait_event_interruptible(affine_queue,
 					(p->eqci_owned != fq));
 		else
@@ -2511,6 +2523,8 @@ int qman_p_enqueue_precommit(struct qman_portal *p, struct qman_fq *fq,
 	if (unlikely((flags & QMAN_ENQUEUE_FLAG_WAIT) &&
 			(flags & QMAN_ENQUEUE_FLAG_WAIT_SYNC))) {
 		if (flags & QMAN_ENQUEUE_FLAG_WAIT_INT)
+			/* NB: return success even if signal occurs before
+			 * condition is true. pvb_commit guarantees success */
 			wait_event_interruptible(affine_queue,
 					(p->eqci_owned != fq));
 		else
@@ -2552,6 +2566,8 @@ int qman_enqueue_precommit(struct qman_fq *fq, const struct qm_fd *fd,
 	if (unlikely((flags & QMAN_ENQUEUE_FLAG_WAIT) &&
 			(flags & QMAN_ENQUEUE_FLAG_WAIT_SYNC))) {
 		if (flags & QMAN_ENQUEUE_FLAG_WAIT_INT)
+			/* NB: return success even if signal occurs before
+			 * condition is true. pvb_commit guarantees success */
 			wait_event_interruptible(affine_queue,
 					(p->eqci_owned != fq));
 		else
@@ -3812,6 +3828,8 @@ int qman_ceetm_channel_claim(struct qm_ceetm_channel **channel,
 	}
 
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	if (!p)
+		return -ENOMEM;
 	p->idx = channel_idx;
 	p->dcp_idx = lni->dcp_idx;
 	list_add_tail(&p->node, &lni->channels);
