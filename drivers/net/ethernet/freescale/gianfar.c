@@ -240,7 +240,7 @@ static int gfar_init_bds(struct net_device *ndev)
 			if (skb) {
 				bufaddr = be32_to_cpu(rxbdp->bufPtr);
 			} else {
-				skb = gfar_alloc_skb(ndev);
+				skb = gfar_new_skb(ndev, &bufaddr);
 				if (!skb) {
 					netdev_err(ndev, "Can't allocate RX buffers\n");
 					return -ENOMEM;
@@ -1864,9 +1864,7 @@ static int gfar_resume(struct device *dev)
 	struct net_device *ndev = priv->ndev;
 	struct gfar __iomem *regs = priv->gfargrp[0].regs;
 	u32 tempval;
-	int magic_packet = priv->wol_en &&
-			   (priv->device_flags &
-			    FSL_GIANFAR_DEV_HAS_MAGIC_PACKET);
+	u16 wol = priv->wol_opts;
 
 	if (!netif_running(ndev))
 		return 0;
@@ -2997,21 +2995,27 @@ static struct sk_buff *gfar_alloc_skb(struct net_device *dev)
 	return skb;
 }
 
-struct sk_buff *gfar_new_skb(struct net_device *dev)
+static struct sk_buff *gfar_new_skb(struct net_device *dev, dma_addr_t *bufaddr)
 {
        struct gfar_private *priv = netdev_priv(dev);
        struct sk_buff *skb;
+	dma_addr_t addr;
 
-       if (likely(priv->rx_buffer_size <= DEFAULT_RX_BUFFER_SIZE)) {
-               struct sk_buff_head *h = &__get_cpu_var(skb_recycle_list);
+	skb = gfar_alloc_skb(dev);
+	if (!skb)
+		return NULL;
 
-               skb = __skb_dequeue(h);
-               if (skb != NULL)
-                       return skb;
-       }
+	addr = dma_map_single(priv->dev, skb->data,
+			      priv->rx_buffer_size, DMA_FROM_DEVICE);
+	if (unlikely(dma_mapping_error(priv->dev, addr))) {
+		dev_kfree_skb_any(skb);
+		return NULL;
+	}
 
-       return gfar_alloc_skb(dev);
+	*bufaddr = addr;
+	return skb;
 }
+
 
 irqreturn_t gfar_receive(int irq, void *grp_id)
 {
@@ -3042,7 +3046,6 @@ irqreturn_t gfar_receive(int irq, void *grp_id)
 
 	return IRQ_HANDLED;
 }
-EXPORT_SYMBOL(gfar_new_skb);
 
 /* Interrupt Handler for Transmit complete */
 static irqreturn_t gfar_transmit(int irq, void *grp_id)

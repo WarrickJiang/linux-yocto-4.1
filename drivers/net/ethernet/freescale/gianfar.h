@@ -29,6 +29,7 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
+#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -490,7 +491,12 @@ extern const char gfar_driver_version[];
 #define ATTR_BUFSTASH		0x00004000
 
 #define ATTR_SNOOPING		0x000000c0
+
+#ifdef CONFIG_SOC_LS1021A
+#define ATTR_INIT_SETTINGS      0
+#else
 #define ATTR_INIT_SETTINGS      ATTR_SNOOPING
+#endif
 
 #define ATTRELI_INIT_SETTINGS   0x0
 #define ATTRELI_EL_MASK		0x3fff0000
@@ -1666,7 +1672,7 @@ static inline void gfar_init_rxbdp(struct gfar_priv_rx_q *rx_queue,
 	if (bdp == rx_queue->rx_bd_base + rx_queue->rx_ring_size - 1)
 		lstatus |= BD_LFLAG(RXBD_WRAP);
 
-	eieio();
+	gfar_wmb();
 
 	bdp->lstatus = cpu_to_be32(lstatus);
 }
