@@ -20,6 +20,7 @@
 #include <asm/smp_scu.h>
 #include <asm/mach/map.h>
 #include <linux/delay.h>
+#include <asm/smp_plat.h>
 
 #include "common.h"
 #include "hardware.h"
@@ -35,6 +36,8 @@
 #define	DCSR_RCPM2_DEBUG1	0x400
 #define	DCSR_RCPM2_DEBUG2	0x414
 
+#define	CCSR_TWAITSR0		0x04C
+
 #define	STRIDE_4B		4
 
 u32 g_diag_reg;
@@ -42,6 +45,7 @@ static void __iomem *scu_base;
 static void __iomem *dcfg_base;
 static void __iomem *scfg_base;
 static void __iomem *dcsr_rcpm2_base;
+static void __iomem *rcpm_base;
 static u32 secondary_pre_boot_entry;
  
 static struct map_desc scu_io_desc __initdata = {
@@ -124,7 +128,7 @@ static int ls1021a_secondary_iomap(void)
 	np = of_find_compatible_node(NULL, NULL, "fsl,ls1021a-dcfg");
 	if (!np) {
 		pr_err("%s: failed to find dcfg node.\n", __func__);
-		ret = -EINVAL;
+		ret = -ENODEV;
 		goto dcfg_err;
 	}
 
@@ -139,7 +143,7 @@ static int ls1021a_secondary_iomap(void)
 	np = of_find_compatible_node(NULL, NULL, "fsl,ls1021a-scfg");
 	if (!np) {
 		pr_err("%s: failed to find scfg node.\n", __func__);
-		ret = -EINVAL;
+		ret = -ENODEV;
 		goto scfg_err;
 	}
 
@@ -154,7 +158,7 @@ static int ls1021a_secondary_iomap(void)
 	np = of_find_compatible_node(NULL, NULL, "fsl,ls1021a-dcsr-rcpm");
 	if (!np) {
 		pr_err("%s: failed to find dcsr node.\n", __func__);
-		ret = -EINVAL;
+		ret = -ENODEV;
 		goto dcsr_err;
 	}
 
@@ -166,8 +170,25 @@ static int ls1021a_secondary_iomap(void)
 		goto dcsr_err;
 	}
 
+	np = of_find_compatible_node(NULL, NULL, "fsl,qoriq-rcpm-2.1");
+	if (!np) {
+		pr_err("%s(): failed to find the RCPM node.\n", __func__);
+		ret = -ENODEV;
+		goto rcpm_err;
+	}
+
+	rcpm_base = of_iomap(np, 0);
+	of_node_put(np);
+	if (!rcpm_base) {
+		pr_err("%s: failed to map rcpm.\n", __func__);
+		ret = -ENOMEM;
+		goto rcpm_err;
+	}
+
 	return 0;
 
+rcpm_err:
+	iounmap(dcsr_rcpm2_base);
 dcsr_err:
 	iounmap(scfg_base);
 scfg_err:
@@ -176,12 +197,17 @@ dcfg_err:
 	return ret;
 }
 
+u32 ls1_get_cpu_arg(int cpu)
+{
+	BUG_ON(!rcpm_base);
+
+	cpu = cpu_logical_map(cpu);
+	return ioread32be(rcpm_base + CCSR_TWAITSR0) & (1 << cpu);
+}
+
 void ls1021a_set_secondary_entry(void)
 {
 	unsigned long paddr;
-
-	secondary_pre_boot_entry = readl_relaxed(dcfg_base +
-						DCFG_CCSR_SCRATCHRW1);
 
 	if (dcfg_base) {
 		paddr = virt_to_phys(secondary_startup);
@@ -249,6 +275,10 @@ static int ls1021a_boot_secondary(unsigned int cpu, struct task_struct *idle)
 static void __init ls1021a_smp_prepare_cpus(unsigned int max_cpus)
 {
 	ls1021a_secondary_iomap();
+
+	secondary_pre_boot_entry = readl_relaxed(dcfg_base +
+						DCFG_CCSR_SCRATCHRW1);
+
 	ls1021a_set_secondary_entry();
 }
 
