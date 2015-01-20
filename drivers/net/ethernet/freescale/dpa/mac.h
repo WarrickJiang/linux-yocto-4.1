@@ -104,7 +104,8 @@ struct mac_device {
 			bool en);
 	int (*get_stats)(struct mac_device *mac_dev, uint64_t *p_Statistics);
 	int (*dump_mac_regs)(struct mac_device *h_mac, char *buf, int nn);
-
+	int (*dump_mac_rx_stats)(struct mac_device *h_mac, char *buf, int nn);
+	int (*dump_mac_tx_stats)(struct mac_device *h_mac, char *buf, int nn);
 };
 
 struct mac_address {
