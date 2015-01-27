@@ -490,6 +490,7 @@
 #define FTDI_TTUSB_PID 0xFF20 /* Product Id */
 
 #define FTDI_USBX_707_PID 0xF857	/* ADSTech IR Blaster USBX-707 (FTDI_VID) */
+#define FTDI_THINKECO_PID 0x8C80       /* ADSTech IR Blaster USBX-707 */
 
 #define FTDI_RELAIS_PID	0xFA10  /* Relais device from Rudolf Gugler */
 
