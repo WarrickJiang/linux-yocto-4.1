@@ -173,6 +173,8 @@ static const char * const boards[] __initconst = {
 	"fsl,B4860QDS",
 	"fsl,B4420QDS",
 	"fsl,B4220QDS",
+	"fsl,T1040D4RDB",
+	"fsl,T1042D4RDB",
 	"fsl,T1040QDS",
 	"fsl,T1042QDS",
 	"fsl,T1040RDB",
