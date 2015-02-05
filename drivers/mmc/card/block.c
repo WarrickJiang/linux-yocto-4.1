@@ -839,6 +839,17 @@ static u32 mmc_sd_num_wr_blocks(struct mmc_card *card)
 	return result;
 }
 
+static int send_stop(struct mmc_card *card, u32 *status)
+{
+	struct mmc_command cmd = {0};
+	int err;
+	cmd.opcode = MMC_STOP_TRANSMISSION;
+	cmd.flags = MMC_RSP_SPI_R1B | MMC_RSP_R1B | MMC_CMD_AC;
+	err = mmc_wait_for_cmd(card->host, &cmd, 5);
+	if (err == 0)
+		*status = cmd.resp[0];
+	return err;
+}
 static int get_card_status(struct mmc_card *card, u32 *status, int retries)
 {
 	struct mmc_command cmd = {0};
@@ -852,99 +863,6 @@ static int get_card_status(struct mmc_card *card, u32 *status, int retries)
 	if (err == 0)
 		*status = cmd.resp[0];
 	return err;
-}
-
-static int card_busy_detect(struct mmc_card *card, unsigned int timeout_ms,
-		bool hw_busy_detect, struct request *req, int *gen_err)
-{
-	unsigned long timeout = jiffies + msecs_to_jiffies(timeout_ms);
-	int err = 0;
-	u32 status;
-
-	do {
-		err = get_card_status(card, &status, 5);
-		if (err) {
-			pr_err("%s: error %d requesting status\n",
-			       req->rq_disk->disk_name, err);
-			return err;
-		}
-
-		if (status & R1_ERROR) {
-			pr_err("%s: %s: error sending status cmd, status %#x\n",
-				req->rq_disk->disk_name, __func__, status);
-			*gen_err = 1;
-		}
-
-		/* We may rely on the host hw to handle busy detection.*/
-		if ((card->host->caps & MMC_CAP_WAIT_WHILE_BUSY) &&
-			hw_busy_detect)
-			break;
-
-		/*
-		 * Timeout if the device never becomes ready for data and never
-		 * leaves the program state.
-		 */
-		if (time_after(jiffies, timeout)) {
-			pr_err("%s: Card stuck in programming state! %s %s\n",
-				mmc_hostname(card->host),
-				req->rq_disk->disk_name, __func__);
-			return -ETIMEDOUT;
-		}
-
-		/*
-		 * Some cards mishandle the status bits,
-		 * so make sure to check both the busy
-		 * indication and the card state.
-		 */
-	} while (!(status & R1_READY_FOR_DATA) ||
-		 (R1_CURRENT_STATE(status) == R1_STATE_PRG));
-
-	return err;
-}
-
-static int send_stop(struct mmc_card *card, unsigned int timeout_ms,
-		struct request *req, int *gen_err, u32 *stop_status)
-{
-	struct mmc_host *host = card->host;
-	struct mmc_command cmd = {0};
-	int err;
-	bool use_r1b_resp = rq_data_dir(req) == WRITE;
-
-	/*
-	 * Normally we use R1B responses for WRITE, but in cases where the host
-	 * has specified a max_busy_timeout we need to validate it. A failure
-	 * means we need to prevent the host from doing hw busy detection, which
-	 * is done by converting to a R1 response instead.
-	 */
-	if (host->max_busy_timeout && (timeout_ms > host->max_busy_timeout))
-		use_r1b_resp = false;
-
-	cmd.opcode = MMC_STOP_TRANSMISSION;
-	if (use_r1b_resp) {
-		cmd.flags = MMC_RSP_SPI_R1B | MMC_RSP_R1B | MMC_CMD_AC;
-		cmd.busy_timeout = timeout_ms;
-	} else {
-		cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 | MMC_CMD_AC;
-	}
-
-	err = mmc_wait_for_cmd(host, &cmd, 5);
-	if (err)
-		return err;
-
-	*stop_status = cmd.resp[0];
-
-	/* No need to check card status in case of READ. */
-	if (rq_data_dir(req) == READ)
-		return 0;
-
-	if (!mmc_host_is_spi(host) &&
-		(*stop_status & R1_ERROR)) {
-		pr_err("%s: %s: general error sending stop command, resp %#x\n",
-			req->rq_disk->disk_name, __func__, *stop_status);
-		*gen_err = 1;
-	}
-
-	return card_busy_detect(card, timeout_ms, use_r1b_resp, req, gen_err);
 }
 
 #define ERR_NOMEDIUM	3
@@ -1066,21 +984,26 @@ static int mmc_blk_cmd_recovery(struct mmc_card *card, struct request *req,
 	 */
 	if (R1_CURRENT_STATE(status) == R1_STATE_DATA ||
 	    R1_CURRENT_STATE(status) == R1_STATE_RCV) {
-		err = send_stop(card,
-			DIV_ROUND_UP(brq->data.timeout_ns, 1000000),
-			req, gen_err, &stop_status);
-		if (err) {
+		err = send_stop(card, &stop_status);
+		if (err)
 			pr_err("%s: error %d sending stop command\n",
 			       req->rq_disk->disk_name, err);
-			/*
-			 * If the stop cmd also timed out, the card is probably
-			 * not present, so abort. Other errors are bad news too.
-			 */
-			return ERR_ABORT;
-		}
 
+		/*
+		 * If the stop cmd also timed out, the card is probably
+		 * not present, so abort.  Other errors are bad news too.
+		 */
+		if (err)
+			return ERR_ABORT;
 		if (stop_status & R1_CARD_ECC_FAILED)
 			*ecc_err = 1;
+		if (!mmc_host_is_spi(card->host) && rq_data_dir(req) != READ)
+			if (stop_status & R1_ERROR) {
+				pr_err("%s: %s: general error sending stop command, stop cmd response %#x\n",
+				       req->rq_disk->disk_name, __func__,
+				       stop_status);
+				*gen_err = 1;
+			}
 	}
 
 	/* Check for set block count errors */
@@ -1098,7 +1021,7 @@ static int mmc_blk_cmd_recovery(struct mmc_card *card, struct request *req,
 		return ERR_CONTINUE;
 
 	/* Now for stop errors.  These aren't fatal to the transfer. */
-	pr_info("%s: error %d sending stop command, original cmd response %#x, card status %#x\n",
+	pr_err("%s: error %d sending stop command, original cmd response %#x, card status %#x\n",
 	       req->rq_disk->disk_name, brq->stop.error,
 	       brq->cmd.resp[0], status);
 
@@ -1366,7 +1289,8 @@ static int mmc_blk_err_check(struct mmc_card *card,
 	 * program mode, which we have to wait for it to complete.
 	 */
 	if (!mmc_host_is_spi(card->host) && rq_data_dir(req) != READ) {
-		int err;
+		u32 status;
+		unsigned long timeout;
 
 		/* Check stop command response */
 		if (brq->stop.resp[0] & R1_ERROR) {
@@ -1376,10 +1300,39 @@ static int mmc_blk_err_check(struct mmc_card *card,
 			gen_err = 1;
 		}
 
-		err = card_busy_detect(card, MMC_BLK_TIMEOUT_MS, false, req,
-					&gen_err);
-		if (err)
+		timeout = jiffies + msecs_to_jiffies(MMC_BLK_TIMEOUT_MS);
+		do {
+			int err = get_card_status(card, &status, 5);
+			if (err) {
+				pr_err("%s: error %d requesting status\n",
+				       req->rq_disk->disk_name, err);
 			return MMC_BLK_CMD_ERR;
+			}
+
+			if (status & R1_ERROR) {
+				pr_err("%s: %s: general error sending status command, card status %#x\n",
+				       req->rq_disk->disk_name, __func__,
+				       status);
+				gen_err = 1;
+			}
+
+			/* Timeout if the device never becomes ready for data
+			 * and never leaves the program state.
+			 */
+			if (time_after(jiffies, timeout)) {
+				pr_err("%s: Card stuck in programming state!"\
+					" %s %s\n", mmc_hostname(card->host),
+					req->rq_disk->disk_name, __func__);
+
+				return MMC_BLK_CMD_ERR;
+			}
+			/*
+			 * Some cards mishandle the status bits,
+			 * so make sure to check both the busy
+			 * indication and the card state.
+			 */
+		} while (!(status & R1_READY_FOR_DATA) ||
+			 (R1_CURRENT_STATE(status) == R1_STATE_PRG));
 	}
 
 	/* if general error occurs, retry the write operation. */

@@ -95,7 +95,7 @@ struct mmc_command {
  *              actively failing requests
  */
 
-	unsigned int		busy_timeout;	/* busy detect timeout in ms */
+	unsigned int            cmd_timeout_ms; /* in milliseconds */
 	/* Set this flag only for blocking sanitize request */
 	bool			sanitize_busy;
 

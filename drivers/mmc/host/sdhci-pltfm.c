@@ -45,10 +45,6 @@ unsigned int sdhci_pltfm_clk_get_max_clock(struct sdhci_host *host)
 EXPORT_SYMBOL_GPL(sdhci_pltfm_clk_get_max_clock);
 
 static const struct sdhci_ops sdhci_pltfm_ops = {
-	.set_clock = sdhci_set_clock,
-	.set_bus_width = sdhci_set_bus_width,
-	.reset = sdhci_reset,
-	.set_uhs_signaling = sdhci_set_uhs_signaling,
 };
 
 #ifdef CONFIG_OF
@@ -75,6 +71,7 @@ void sdhci_get_of_property(struct platform_device *pdev)
 	u32 bus_width;
 	int size;
 
+	if (of_device_is_available(np)) {
 	if (of_get_property(np, "sdhci,auto-cmd12", NULL))
 		host->quirks |= SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12;
 
@@ -132,6 +129,7 @@ void sdhci_get_of_property(struct platform_device *pdev)
 	if (of_find_property(np, "enable-sdio-wakeup", NULL))
 		host->mmc->pm_caps |= MMC_PM_WAKE_SDIO_IRQ;
 }
+}
 #else
 void sdhci_get_of_property(struct platform_device *pdev) {}
 #endif /* CONFIG_OF */
@@ -142,8 +140,8 @@ struct sdhci_host *sdhci_pltfm_init(struct platform_device *pdev,
 				    size_t priv_size)
 {
 	struct sdhci_host *host;
-	struct sdhci_pltfm_host *pltfm_host;
 	struct device_node *np = pdev->dev.of_node;
+	struct sdhci_pltfm_host *pltfm_host;
 	struct resource *iomem;
 	int ret;
 
@@ -259,11 +257,9 @@ EXPORT_SYMBOL_GPL(sdhci_pltfm_register);
 int sdhci_pltfm_unregister(struct platform_device *pdev)
 {
 	struct sdhci_host *host = platform_get_drvdata(pdev);
-	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	int dead = (sdhci_readl(host, SDHCI_INT_STATUS) == 0xffffffff);
 
 	sdhci_remove_host(host, dead);
-	clk_disable_unprepare(pltfm_host->clk);
 	sdhci_pltfm_free(pdev);
 
 	return 0;

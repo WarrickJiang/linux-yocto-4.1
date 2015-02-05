@@ -1681,7 +1681,6 @@ static int mmc_sleep(struct mmc_host *host)
 {
 	struct mmc_command cmd = {0};
 	struct mmc_card *card = host->card;
-	unsigned int timeout_ms = DIV_ROUND_UP(card->ext_csd.sa_timeout, 10000);
 	int err;
 
 	/* Re-tuning can't be done once the card is deselected */
@@ -1695,19 +1694,7 @@ static int mmc_sleep(struct mmc_host *host)
 	cmd.arg = card->rca << 16;
 	cmd.arg |= 1 << 15;
 
-	/*
-	 * If the max_busy_timeout of the host is specified, validate it against
-	 * the sleep cmd timeout. A failure means we need to prevent the host
-	 * from doing hw busy detection, which is done by converting to a R1
-	 * response instead of a R1B.
-	 */
-	if (host->max_busy_timeout && (timeout_ms > host->max_busy_timeout)) {
-		cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
-	} else {
-		cmd.flags = MMC_RSP_R1B | MMC_CMD_AC;
-		cmd.busy_timeout = timeout_ms;
-	}
-
+	cmd.flags = MMC_RSP_R1B | MMC_CMD_AC;
 	err = mmc_wait_for_cmd(host, &cmd, 0);
 	if (err)
 		goto out_release;
@@ -1718,8 +1705,8 @@ static int mmc_sleep(struct mmc_host *host)
 	 * SEND_STATUS command to poll the status because that command (and most
 	 * others) is invalid while the card sleeps.
 	 */
-	if (!cmd.busy_timeout || !(host->caps & MMC_CAP_WAIT_WHILE_BUSY))
-		mmc_delay(timeout_ms);
+	if (!(host->caps & MMC_CAP_WAIT_WHILE_BUSY))
+		mmc_delay(DIV_ROUND_UP(card->ext_csd.sa_timeout, 10000));
 
 out_release:
 	mmc_retune_release(host);

@@ -508,17 +508,13 @@ int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 		  (value << 8) |
 		  set;
 	cmd.flags = MMC_CMD_AC;
-	if (use_r1b_resp) {
+	if (use_busy_signal)
 		cmd.flags |= MMC_RSP_SPI_R1B | MMC_RSP_R1B;
-		/*
-		 * A busy_timeout of zero means the host can decide to use
-		 * whatever value it finds suitable.
-		 */
-		cmd.busy_timeout = timeout_ms;
-	} else {
+	else
 		cmd.flags |= MMC_RSP_SPI_R1 | MMC_RSP_R1;
-	}
 
+
+	cmd.cmd_timeout_ms = timeout_ms;
 	if (index == EXT_CSD_SANITIZE_START)
 		cmd.sanitize_busy = true;
 
