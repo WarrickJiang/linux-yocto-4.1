@@ -862,6 +862,9 @@ static int __test_tls(struct crypto_aead *tfm, int enc,
 	iv = kzalloc(MAX_IVLEN, GFP_KERNEL);
 	if (!iv)
 		return ret;
+	key = kmalloc(MAX_KEYLEN, GFP_KERNEL);
+	if (!key)
+		goto out_noxbuf;
 	if (testmgr_alloc_buf(xbuf))
 		goto out_noxbuf;
 	if (testmgr_alloc_buf(axbuf))
@@ -907,7 +910,13 @@ static int __test_tls(struct crypto_aead *tfm, int enc,
 			memset(iv, 0, MAX_IVLEN);
 
 		crypto_aead_clear_flags(tfm, ~0);
-		key = template[i].key;
+		if (template[i].klen > MAX_KEYLEN) {
+			pr_err("alg: tls%s: setkey failed on test %d for %s: key size %d > %d\n",
+			d, i, algo, template[i].klen, MAX_KEYLEN);
+			ret = -EINVAL;
+			goto out;
+		}
+		memcpy(key, template[i].key, template[i].klen);
 
 		ret = crypto_aead_setkey(tfm, key, template[i].klen);
 		if (!ret == template[i].fail) {
@@ -998,6 +1007,7 @@ out_nooutbuf:
 out_noaxbuf:
 	testmgr_free_buf(xbuf);
 out_noxbuf:
+	kfree(key);
 	kfree(iv);
 	return ret;
 }
