@@ -666,7 +666,7 @@ struct bman_pool *bman_new_pool(const struct bman_pool_params *params)
 	if (params->flags & BMAN_POOL_FLAG_THRESH)
 		goto err;
 #endif
-	pool = kmalloc(sizeof(*pool), GFP_KERNEL);
+	pool = kmalloc(sizeof(*pool), GFP_ATOMIC);
 	if (!pool)
 		goto err;
 	pool->sp = NULL;
@@ -679,7 +679,7 @@ struct bman_pool *bman_new_pool(const struct bman_pool_params *params)
 		pool->params.bpid = bpid;
 	if (params->flags & BMAN_POOL_FLAG_STOCKPILE) {
 		pool->sp = kmalloc(sizeof(struct bm_buffer) * BMAN_STOCKPILE_SZ,
-					GFP_KERNEL);
+					GFP_ATOMIC);
 		if (!pool->sp)
 			goto err;
 	}
