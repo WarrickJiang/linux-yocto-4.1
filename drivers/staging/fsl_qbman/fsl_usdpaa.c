@@ -917,6 +917,7 @@ static long ioctl_dma_map(struct file *fp, struct ctx *ctx,
 	if (!map)
 		return -ENOMEM;
 
+	down_write(&current->mm->mmap_sem);
 	spin_lock(&mem_lock);
 	if (i->flags & USDPAA_DMA_FLAG_SHARE) {
 		list_for_each_entry(frag, &mem_list, list) {
@@ -943,6 +944,7 @@ static long ioctl_dma_map(struct file *fp, struct ctx *ctx,
 						i->phys_addr = frag->base;
 						i->ptr = tmp->virt_addr;
 						spin_unlock(&mem_lock);
+						up_write(&current->mm->mmap_sem);
 						return 0;
 					}
 				/* Matching entry - just need to map */
@@ -1017,9 +1019,7 @@ static long ioctl_dma_map(struct file *fp, struct ctx *ctx,
 	i->did_create = 1;
 do_map:
 	/* Verify there is sufficient space to do the mapping */
-	down_write(&current->mm->mmap_sem);
 	next_addr = usdpaa_get_unmapped_area(fp, next_addr, i->len, 0, 0);
-	up_write(&current->mm->mmap_sem);
 
 	if (next_addr & ~PAGE_MASK) {
 		ret = -ENOMEM;
@@ -1067,7 +1067,6 @@ out:
 
 	if (!ret) {
 		unsigned long longret;
-		down_write(&current->mm->mmap_sem);
 		longret = do_mmap_pgoff(fp, next_addr, map->total_size,
 					PROT_READ |
 					(i->flags &
@@ -1076,7 +1075,6 @@ out:
 					MAP_SHARED,
 					start_frag->pfn_base,
 					&populate);
-		up_write(&current->mm->mmap_sem);
 		if (longret & ~PAGE_MASK) {
 			ret = (int)longret;
 		} else {
@@ -1085,6 +1083,7 @@ out:
 		}
 	} else
 		kfree(map);
+	up_write(&current->mm->mmap_sem);
 	return ret;
 }
 
