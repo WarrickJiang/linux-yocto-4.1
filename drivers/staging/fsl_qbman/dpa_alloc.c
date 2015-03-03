@@ -465,6 +465,12 @@ int dpa_alloc_new(struct dpa_alloc *alloc, u32 *result, u32 count, u32 align,
 		kfree(margin_left);
 		goto err;
 	}
+	used_node = kmalloc(sizeof(*used_node), GFP_KERNEL);
+	if (!used_node) {
+		kfree(margin_left);
+		kfree(margin_right);
+		goto err;
+	}
 	spin_lock_irq(&alloc->lock);
 	list_for_each_entry(i, &alloc->free, list) {
 		base = (i->base + align - 1) / align;
@@ -512,6 +518,7 @@ done:
 		spin_unlock_irq(&alloc->lock);
 		kfree(margin_left);
 		kfree(margin_right);
+		kfree(used_node);
 	}
 
 err:
@@ -521,11 +528,6 @@ err:
 		return -ENOMEM;
 
 	/* Add the allocation to the used list with a refcount of 1 */
-	used_node = kmalloc(sizeof(*used_node), GFP_KERNEL);
-	if (!used_node) {
-		spin_unlock_irq(&alloc->lock);
-		return -ENOMEM;
-	}
 	used_node->base = *result;
 	used_node->num = num;
 	used_node->refcount = 1;
@@ -626,6 +628,10 @@ int dpa_alloc_reserve(struct dpa_alloc *alloc, u32 base, u32 num)
 	DPRINT("alloc_reserve(%d,%d)\n", base, num);
 	DUMP(alloc);
 
+	used_node = kmalloc(sizeof(*used_node), GFP_KERNEL);
+	if (!used_node)
+		return -ENOMEM;
+
 	spin_lock_irq(&alloc->lock);
 
 	/* Check for the node in the used list.
@@ -634,6 +640,7 @@ int dpa_alloc_reserve(struct dpa_alloc *alloc, u32 base, u32 num)
 		if ((i->base == base) && (i->num == num)) {
 			++i->refcount;
 			spin_unlock_irq(&alloc->lock);
+			kfree(used_node);
 			return 0;
 		}
 		if ((base >= i->base) && (base < (i->base + i->num))) {
@@ -645,6 +652,7 @@ int dpa_alloc_reserve(struct dpa_alloc *alloc, u32 base, u32 num)
 			       base, base + num - 1, i->base,
 			       i->base + i->num - 1);
 			spin_unlock_irq(&alloc->lock);
+			kfree(used_node);
 			return -1;
 		}
 	}
@@ -657,16 +665,12 @@ int dpa_alloc_reserve(struct dpa_alloc *alloc, u32 base, u32 num)
 			       base, base + num - 1,
 			       i->base, i->base + i->num - 1);
 			spin_unlock_irq(&alloc->lock);
+			kfree(used_node);
 			return -1;
 		}
 	}
 	/* Add the allocation to the used list with a refcount of 1 */
-	used_node = kmalloc(sizeof(*used_node), GFP_KERNEL);
-	if (!used_node) {
-		spin_unlock_irq(&alloc->lock);
-		return -ENOMEM;
 
-	}
 	used_node->base = base;
 	used_node->num = num;
 	used_node->refcount = 1;
