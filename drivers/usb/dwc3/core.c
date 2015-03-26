@@ -896,6 +896,8 @@ static int dwc3_probe(struct platform_device *pdev)
 	dwc->needs_fifo_resize = device_property_read_bool(dev,
 				"tx-fifo-resize");
 
+	dwc->configure_gfladj =
+				device_property_read_bool(dev, "configure-gfladj");
 	dwc->disable_scramble_quirk = device_property_read_bool(dev,
 				"snps,disable_scramble_quirk");
 	dwc->u2exit_lfps_quirk = device_property_read_bool(dev,
@@ -1000,6 +1002,11 @@ static int dwc3_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto err1;
 	}
+
+	/* Adjust Frame Length */
+	if (dwc->configure_gfladj)
+		dwc3_writel(dwc->regs, DWC3_GFLADJ, GFLADJ_30MHZ_REG_SEL |
+			    GFLADJ_30MHZ(GFLADJ_30MHZ_DEFAULT));
 
 	if (IS_ENABLED(CONFIG_USB_DWC3_HOST))
 		dwc->dr_mode = USB_DR_MODE_HOST;

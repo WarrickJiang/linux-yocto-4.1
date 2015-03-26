@@ -236,6 +236,11 @@
 #define DWC3_GHWPARAMS4_HIBER_SCRATCHBUFS(n)	(((n) & (0x0f << 13)) >> 13)
 #define DWC3_MAX_HIBER_SCRATCHBUFS		15
 
+/* Global Frame Length Adjustment Register */
+#define GFLADJ_30MHZ_REG_SEL		(1 << 7)
+#define GFLADJ_30MHZ(n)			((n) & 0x3f)
+#define GFLADJ_30MHZ_DEFAULT		0x20
+
 /* Global HWPARAMS6 Register */
 #define DWC3_GHWPARAMS6_EN_FPGA			(1 << 7)
 
@@ -850,6 +855,7 @@ struct dwc3 {
 	unsigned		is_utmi_l1_suspend:1;
 	unsigned		is_fpga:1;
 	unsigned		needs_fifo_resize:1;
+	unsigned		configure_gfladj:1;
 	unsigned		pullups_connected:1;
 	unsigned		resize_fifos:1;
 	unsigned		setup_packet_pending:1;
