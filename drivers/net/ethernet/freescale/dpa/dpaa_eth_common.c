@@ -88,6 +88,7 @@ static const char fsl_qman_frame_queues[][25] = {
 #ifdef CONFIG_FSL_DPAA_HOOKS
 /* A set of callbacks for hooking into the fastpath at different points. */
 struct dpaa_eth_hooks_s dpaa_eth_hooks;
+EXPORT_SYMBOL(dpaa_eth_hooks);
 /* This function should only be called on the probe paths, since it makes no
  * effort to guarantee consistency of the destination hooks structure.
  */
@@ -1393,7 +1394,7 @@ int dpa_fq_init(struct dpa_fq *dpa_fq, bool td_enable)
 }
 EXPORT_SYMBOL(dpa_fq_init);
 
-static int __cold __attribute__((nonnull))
+int __cold __attribute__((nonnull))
 _dpa_fq_free(struct device *dev, struct qman_fq *fq)
 {
 	int			 _errno, __errno;
@@ -1425,6 +1426,7 @@ _dpa_fq_free(struct device *dev, struct qman_fq *fq)
 
 	return _errno;
 }
+EXPORT_SYMBOL(_dpa_fq_free);
 
 int __cold __attribute__((nonnull))
 dpa_fq_free(struct device *dev, struct list_head *list)
