@@ -1654,8 +1654,12 @@ BEGIN_FTR_SECTION
 	LOAD_REG_ADDR(r8, paca)	/* Get the current paca */
 	ld	r8,0(r8)
 	li	r5,0
+#ifdef CONFIG_SMP
 	LOAD_REG_ADDR(r7, nr_cpu_ids)
 	lwz	r7,0(r7)
+#else
+	li  r7,1
+#endif
 11:	lhz	r6,PACAHWCPUID(r8)
 	cmpw	r6,r4
 	beq	12f

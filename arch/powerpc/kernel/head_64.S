@@ -230,8 +230,12 @@ _GLOBAL(fsl_secondary_thread_init)
 	ld	r3,0(r3)
 	mfspr	r4,SPRN_TIR	/* The thread0 cpu id plus TIR is the */
 	add	r3,r3,r4	/* logical id of the current thread. */
+#ifdef CONFIG_SMP
 	LOAD_REG_ADDR(r4, nr_cpu_ids)
 	lwz	r4,0(r4)
+#else
+	li r4,1
+#endif
 	cmpld	r3,r4
 	bge	.
 
