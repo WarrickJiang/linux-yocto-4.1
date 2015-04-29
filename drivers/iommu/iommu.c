@@ -947,7 +947,7 @@ EXPORT_SYMBOL_GPL(iommu_detach_device);
 
 struct iommu_domain *iommu_get_dev_domain(struct device *dev)
 {
-	struct iommu_ops *ops = dev->bus->iommu_ops;
+	const struct iommu_ops *ops = dev->bus->iommu_ops;
 
 	if (unlikely(ops == NULL || ops->get_dev_iommu_domain == NULL))
 		return NULL;
