@@ -101,7 +101,7 @@ static struct ls1_pm_baseaddr ls1_pm_base;
 static unsigned int sleep_modes;
 static suspend_state_t ls1_pm_state;
 
-static void ls1_pm_iomap(void)
+static int ls1_pm_iomap(void)
 {
 	struct device_node *np;
 	void *base;
@@ -130,13 +130,24 @@ static void ls1_pm_iomap(void)
 	ls1_pm_base.dcfg = base;
 
 	np = of_find_compatible_node(NULL, NULL, "fsl,ls1021aqds-fpga");
-	base = of_iomap(np, 0);
-	BUG_ON(!base);
-	ls1_pm_base.fpga = base;
+	if (np) {
+		base = of_iomap(np, 0);
+		BUG_ON(!base);
+		ls1_pm_base.fpga = base;
+	} else {
+		np = of_find_compatible_node(NULL, NULL,
+					"fsl,ls1021atwr-cpld");
+		if (!np) {
+			pr_err("%s: Can not find cpld/fpga node.\n", __func__);
+			return -ENODEV;
+		}
+	}
 
 	base = ioremap(SRAM_CODE_BASE_PHY, PAGE_SIZE);
 	BUG_ON(!base);
 	ls1_pm_base.sram = base;
+
+	return 0;
 }
 
 static void ls1_pm_uniomap(void)
@@ -146,7 +157,10 @@ static void ls1_pm_uniomap(void)
 	iounmap(ls1_pm_base.dcsr_rcpm2);
 	iounmap(ls1_pm_base.scfg);
 	iounmap(ls1_pm_base.dcfg);
-	iounmap(ls1_pm_base.fpga);
+
+	if (ls1_pm_base.fpga)
+		iounmap(ls1_pm_base.fpga);
+
 	iounmap(ls1_pm_base.sram);
 }
 
@@ -299,15 +313,18 @@ static void ls1_enter_deepsleep(void)
 	/* setup the registers of the EPU FSM for deep sleep */
 	ls1_fsm_setup();
 
-	/* connect the EVENT button to IRQ in FPGA */
-	tmp = ioread8(ls1_pm_base.fpga + QIXIS_CTL_SYS);
-	tmp &= ~QIXIS_CTL_SYS_EVTSW_MASK;
-	tmp |= QIXIS_CTL_SYS_EVTSW_IRQ;
-	iowrite8(tmp, ls1_pm_base.fpga + QIXIS_CTL_SYS);
+	if (ls1_pm_base.fpga) {
+		/* connect the EVENT button to IRQ in FPGA */
+		tmp = ioread8(ls1_pm_base.fpga + QIXIS_CTL_SYS);
+		tmp &= ~QIXIS_CTL_SYS_EVTSW_MASK;
+		tmp |= QIXIS_CTL_SYS_EVTSW_IRQ;
+		iowrite8(tmp, ls1_pm_base.fpga + QIXIS_CTL_SYS);
 
-	/* enable deep sleep signals in FPGA */
-	tmp = ioread8(ls1_pm_base.fpga + QIXIS_PWR_CTL2);
-	iowrite8(tmp | QIXIS_PWR_CTL2_PCTL, ls1_pm_base.fpga + QIXIS_PWR_CTL2);
+		/* enable deep sleep signals in FPGA */
+		tmp = ioread8(ls1_pm_base.fpga + QIXIS_PWR_CTL2);
+		iowrite8(tmp | QIXIS_PWR_CTL2_PCTL,
+				ls1_pm_base.fpga + QIXIS_PWR_CTL2);
+	}
 
 	/* enable Warm Device Reset */
 	ls1_clrsetbits_be32(ls1_pm_base.scfg + CCSR_SCFG_DPSLPCR,
@@ -329,9 +346,12 @@ static void ls1_enter_deepsleep(void)
 	ls1_clrsetbits_be32(ls1_pm_base.scfg + CCSR_SCFG_DPSLPCR,
 			    CCSR_SCFG_DPSLPCR_VAL, 0);
 
-	/* disable deep sleep signals in FPGA */
-	tmp = ioread8(ls1_pm_base.fpga + QIXIS_PWR_CTL2);
-	iowrite8(tmp & ~QIXIS_PWR_CTL2_PCTL, ls1_pm_base.fpga + QIXIS_PWR_CTL2);
+	if (ls1_pm_base.fpga) {
+		/* disable deep sleep signals in FPGA */
+		tmp = ioread8(ls1_pm_base.fpga + QIXIS_PWR_CTL2);
+		iowrite8(tmp & ~QIXIS_PWR_CTL2_PCTL,
+				ls1_pm_base.fpga + QIXIS_PWR_CTL2);
+	}
 }
 
 static void ls1_set_power_except(struct device *dev, int on)
@@ -414,7 +434,7 @@ static int ls1_suspend_begin(suspend_state_t state)
 	dpm_for_each_dev(NULL, ls1_set_wakeup_device);
 
 	if (ls1_pm_state == PM_SUSPEND_MEM)
-		ls1_pm_iomap();
+		return ls1_pm_iomap();
 
 	return 0;
 }

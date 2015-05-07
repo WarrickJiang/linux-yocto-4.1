@@ -122,6 +122,10 @@
 	};
 };
 
+&ftm0 {
+       status = "okay";
+};
+
 &i2c0 {
 	status = "okay";
 };
@@ -165,6 +169,11 @@
 		bank-width = <2>;
 		device-width = <1>;
 	};
+
+        cpld@2,0 {
+                 compatible = "fsl,ls1021atwr-cpld";
+                 reg = <0x2 0x0 0x100>;
+        };
 };
 
 &lpuart0 {
