@@ -84,6 +84,8 @@
 #endif
 
 #ifdef CONFIG_ARM
+#undef setbits32
+#undef clrbits32
 /* These are common macros for Power, put here for ARMs */
 #define setbits32(_addr, _v) writel((readl(_addr) | (_v)), (_addr))
 #define clrbits32(_addr, _v) writel((readl(_addr) & ~(_v)), (_addr))
