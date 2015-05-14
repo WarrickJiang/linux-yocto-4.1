@@ -602,22 +602,6 @@ static void gfar_ints_enable(struct gfar_private *priv)
 	}
 }
 
-static void lock_tx_qs(struct gfar_private *priv)
-{
-	int i;
-
-	for (i = 0; i < priv->num_tx_queues; i++)
-		spin_lock(&priv->tx_queue[i]->txlock);
-}
-
-static void unlock_tx_qs(struct gfar_private *priv)
-{
-	int i;
-
-	for (i = 0; i < priv->num_tx_queues; i++)
-		spin_unlock(&priv->tx_queue[i]->txlock);
-}
-
 static int gfar_alloc_tx_queues(struct gfar_private *priv)
 {
 	int i;
@@ -1736,7 +1720,6 @@ static void gfar_filer_restore_table(struct gfar_private *priv)
 {
 	u32 rqfcr, rqfpr;
 	unsigned int i;
-	u8 rqfcr_queue;
 
 	__gfar_filer_disable(priv);
 
