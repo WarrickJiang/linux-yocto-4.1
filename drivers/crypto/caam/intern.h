@@ -97,6 +97,11 @@ struct caam_drv_private {
 
 	int era;		/* SEC Era */
 
+#define SEC_ERRATUM_A_006899 0x01
+	/* SEC errata bitmask */
+	u32 errata;
+
+
 #define	RNG4_MAX_HANDLES 2
 	/* RNG4 block */
 	u32 rng4_sh_init;	/* This bitmap shows which of the State
