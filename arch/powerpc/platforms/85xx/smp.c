@@ -691,6 +691,8 @@ void mpc85xx_smp_kexec_cpu_down(int crash_shutdown, int secondary)
 	local_irq_disable();
 
 	if (secondary) {
+		if (cur_cpu_spec && cur_cpu_spec->cpu_flush_caches)
+			cur_cpu_spec->cpu_flush_caches();
 		atomic_inc(&kexec_down_cpus);
 		/* loop forever */
 		while (1);
@@ -711,62 +713,12 @@ void mpc85xx_smp_kexec_cpu_down(int crash_shutdown, int secondary)
 }
 #endif
 
-static void map_and_flush(unsigned long paddr)
-{
-	struct page *page = pfn_to_page(paddr >> PAGE_SHIFT);
-	unsigned long kaddr  = (unsigned long)kmap_atomic(page);
-
-	flush_dcache_range(kaddr, kaddr + PAGE_SIZE);
-	kunmap_atomic((void *)kaddr);
-}
-
-/**
- * Before we reset the other cores, we need to flush relevant cache
- * out to memory so we don't get anything corrupted, some of these flushes
- * are performed out of an overabundance of caution as interrupts are not
- * disabled yet and we can switch cores
- */
-static void mpc85xx_smp_flush_dcache_kexec(struct kimage *image)
-{
-	kimage_entry_t *ptr, entry;
-	unsigned long paddr;
-	int i;
-
-	if (image->type == KEXEC_TYPE_DEFAULT) {
-		/* normal kexec images are stored in temporary pages */
-		for (ptr = &image->head; (entry = *ptr) && !(entry & IND_DONE);
-		     ptr = (entry & IND_INDIRECTION) ?
-				phys_to_virt(entry & PAGE_MASK) : ptr + 1) {
-			if (!(entry & IND_DESTINATION)) {
-				map_and_flush(entry);
-			}
-		}
-		/* flush out last IND_DONE page */
-		map_and_flush(entry);
-	} else {
-		/* crash type kexec images are copied to the crash region */
-		for (i = 0; i < image->nr_segments; i++) {
-			struct kexec_segment *seg = &image->segment[i];
-			for (paddr = seg->mem; paddr < seg->mem + seg->memsz;
-			     paddr += PAGE_SIZE) {
-				map_and_flush(paddr);
-			}
-		}
-	}
-
-	/* also flush the kimage struct to be passed in as well */
-	flush_dcache_range((unsigned long)image,
-			   (unsigned long)image + sizeof(*image));
-}
-
 static void mpc85xx_smp_machine_kexec(struct kimage *image)
 {
 #ifdef CONFIG_PPC32
 	int timeout = INT_MAX;
 	int i, num_cpus = num_present_cpus();
 #endif
-
-	mpc85xx_smp_flush_dcache_kexec(image);
 
 #ifdef CONFIG_PPC32
 	if (image->type == KEXEC_TYPE_DEFAULT)
