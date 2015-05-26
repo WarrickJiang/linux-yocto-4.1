@@ -295,7 +295,9 @@ static void det_worker(struct work_struct *work)
 
 		/* make sure fb is powerdown */
 		console_lock();
+		fbi->flags |= FBINFO_MISC_USEREVENT;
 		fb_blank(fbi, FB_BLANK_POWERDOWN);
+		fbi->flags &= ~FBINFO_MISC_USEREVENT;
 		console_unlock();
 
 		if (monspecs->modedb_len > 0) {
@@ -328,13 +330,17 @@ static void det_worker(struct work_struct *work)
 		}
 
 		console_lock();
+		fbi->flags |= FBINFO_MISC_USEREVENT;
 		fb_blank(fbi, FB_BLANK_UNBLANK);
+		fbi->flags &= ~FBINFO_MISC_USEREVENT;
 		console_unlock();
 	} else {
 		sii902x->cable_plugin = 0;
 		sprintf(event_string, "EVENT=plugout");
 		console_lock();
+		fbi->flags |= FBINFO_MISC_USEREVENT;
 		fb_blank(fbi, FB_BLANK_POWERDOWN);
+		fbi->flags &= ~FBINFO_MISC_USEREVENT;
 		console_unlock();
 	}
 	kobject_uevent_env(&sii902x->client->dev.kobj,
