@@ -170,6 +170,20 @@ static inline int write_sr(struct spi_nor *nor, u8 val)
 }
 
 /*
+ * Write status Register and configuration register with 2 bytes
+ * The first byte will be written to the status register, while the
+ * second byte will be written to the configuration register.
+ * Return negative if error occured.
+ */
+static int write_sr_cr(struct spi_nor *nor, u16 val)
+{
+	nor->cmd_buf[0] = val & 0xff;
+	nor->cmd_buf[1] = (val >> 8);
+
+	return nor->write_reg(nor, SPINOR_OP_WRSR, nor->cmd_buf, 2, 0);
+}
+
+/*
  * Set write enable latch with Write Enable command.
  * Returns negative if error occurred.
  */
@@ -1317,24 +1331,13 @@ static int macronix_quad_enable(struct spi_nor *nor)
 	return 0;
 }
 
-/*
- * Write status Register and configuration register with 2 bytes
- * The first byte will be written to the status register, while the
- * second byte will be written to the configuration register.
- * Return negative if error occured.
- */
-static int write_sr_cr(struct spi_nor *nor, u16 val)
-{
-	nor->cmd_buf[0] = val & 0xff;
-	nor->cmd_buf[1] = (val >> 8);
-
-	return nor->write_reg(nor, SPINOR_OP_WRSR, nor->cmd_buf, 2, 0);
-}
-
 static int __maybe_unused spansion_quad_enable(struct spi_nor *nor)
 {
 	int ret;
 	int quad_en = CR_QUAD_EN_SPAN << 8;
+
+	quad_en |= read_sr(nor);
+	quad_en |= (read_cr(nor) << 8);
 
 	write_enable(nor);
 
