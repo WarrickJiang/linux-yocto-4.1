@@ -647,22 +647,28 @@
 			fsl,magic-packet;
 			fsl,wake-on-filer;
 			sleep = <&rcpm 0x80000000 0x0>;
-			fsl,num_rx_queues = <0x1>;
-			fsl,num_tx_queues = <0x1>;
+			fsl,num_rx_queues = <0x8>;
+			fsl,num_tx_queues = <0x8>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			ranges;
 
-			queue-group@0 {
-				#address-cells = <1>;
-				#size-cells = <1>;
-				reg = <0x0 0x2d10000 0x0 0x8000>;
-				fsl,rx-bit-map = <0xff>;
-				fsl,tx-bit-map = <0xff>;
+			queue-group@2d10000 {
+				#address-cells = <2>;
+				#size-cells = <2>;
+				reg = <0x0 0x2d10000 0x0 0x1000>;
 				interrupts = <GIC_SPI 144 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
+			queue-group@2d14000  {
+				#address-cells = <2>;
+				#size-cells = <2>;
+				reg = <0x0 0x2d14000 0x0 0x1000>;
+				interrupts = <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 149 IRQ_TYPE_LEVEL_HIGH>;
+			};
 		};
 
 		enet1: ethernet@2d50000 {
@@ -673,22 +679,28 @@
 			interrupt-parent = <&gic>;
 			model = "eTSEC";
 			fsl,dma-endian-le;
-			fsl,num_rx_queues = <0x1>;
-			fsl,num_tx_queues = <0x1>;
+			fsl,num_rx_queues = <0x8>;
+			fsl,num_tx_queues = <0x8>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			ranges;
 
-			queue-group@0 {
-				#address-cells = <1>;
-				#size-cells = <1>;
-				reg = <0x0 0x2d50000 0x0 0x8000>;
-				fsl,rx-bit-map = <0xff>;
-				fsl,tx-bit-map = <0xff>;
+			queue-group@2d50000  {
+				#address-cells = <2>;
+				#size-cells = <2>;
+				reg = <0x0 0x2d50000 0x0 0x1000>;
 				interrupts = <GIC_SPI 150 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 152 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
+			queue-group@2d54000  {
+				#address-cells = <2>;
+				#size-cells = <2>;
+				reg = <0x0 0x2d54000 0x0 0x1000>;
+				interrupts = <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 155 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 156 IRQ_TYPE_LEVEL_HIGH>;
+			};
 		};
 
 		enet2: ethernet@2d90000 {
@@ -699,20 +711,27 @@
 			interrupt-parent = <&gic>;
 			model = "eTSEC";
 			fsl,dma-endian-le;
-			fsl,num_rx_queues = <0x1>;
-			fsl,num_tx_queues = <0x1>;
+			fsl,num_rx_queues = <0x8>;
+			fsl,num_tx_queues = <0x8>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			ranges;
 
-			queue-group@0 {
-				#address-cells = <1>;
-				#size-cells = <1>;
-				reg = <0x0 0x2d90000 0x0 0x8000>;
-				fsl,rx-bit-map = <0xff>;
-				fsl,tx-bit-map = <0xff>;
+			queue-group@2d90000  {
+				#address-cells = <2>;
+				#size-cells = <2>;
+				reg = <0x0 0x2d90000 0x0 0x1000>;
 				interrupts = <GIC_SPI 157 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 158 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			queue-group@2d94000  {
+				#address-cells = <2>;
+				#size-cells = <2>;
+				reg = <0x0 0x2d94000 0x0 0x1000>;
+				interrupts = <GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 162 IRQ_TYPE_LEVEL_HIGH>;
 			};
 		};
 
