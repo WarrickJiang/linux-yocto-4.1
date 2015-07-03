@@ -489,7 +489,7 @@ static int caam_probe(struct platform_device *pdev)
 #ifdef CONFIG_DEBUG_FS
 	struct caam_perfmon *perfmon;
 #endif
-	u32 scfgr, comp_params;
+	u32 mcr, scfgr, comp_params;
 	int pg_size;
 	int BLOCK_OFFSET = 0;
 
@@ -539,8 +539,11 @@ static int caam_probe(struct platform_device *pdev)
 	 * Enable DECO watchdogs and, if this is a PHYS_ADDR_T_64BIT kernel,
 	 * long pointers in master configuration register
 	 */
-	setbits32(&ctrl->mcr, MCFGR_WDENABLE |
-		  (sizeof(dma_addr_t) == sizeof(u64) ? MCFGR_LONG_PTR : 0));
+	mcr = rd_reg32(&ctrl->mcr);
+	mcr = (mcr & ~MCFGR_AWCACHE_MASK) | (0x2 << MCFGR_AWCACHE_SHIFT) |
+	      MCFGR_WDENABLE | (sizeof(dma_addr_t) == sizeof(u64) ?
+				MCFGR_LONG_PTR : 0);
+	wr_reg32(&ctrl->mcr, mcr);
 
 	/*
 	 *  Read the Compile Time paramters and SCFGR to determine
