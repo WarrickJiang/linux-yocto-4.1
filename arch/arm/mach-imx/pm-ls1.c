@@ -195,11 +195,12 @@ static void ls1_setup_pmc_int(void)
 	/* always set external IRQ pins as wakeup source */
 	pmcintecr |= CCSR_SCFG_PMCINTECR_IRQ0 | CCSR_SCFG_PMCINTECR_IRQ1;
 
-	/* enable wakeup interrupt during deep sleep */
-	iowrite32be(pmcintecr, ls1_pm_base.scfg + CCSR_SCFG_PMCINTECR);
 	iowrite32be(0, ls1_pm_base.scfg + CCSR_SCFG_PMCINTLECR);
 	/* clear PMC interrupt status */
 	iowrite32be(0xffffffff, ls1_pm_base.scfg + CCSR_SCFG_PMCINTSR);
+	/* enable wakeup interrupt during deep sleep */
+	iowrite32be(pmcintecr, ls1_pm_base.scfg + CCSR_SCFG_PMCINTECR);
+
 }
 
 static void ls1_clear_pmc_int(void)
