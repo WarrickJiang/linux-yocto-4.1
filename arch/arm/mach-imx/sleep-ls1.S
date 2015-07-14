@@ -25,6 +25,10 @@
 #define DCSR_EPU_EPECR0			0x300
 #define DCSR_EPU_EPECR15		0x33c
 
+#define CCSR_GIC_BASE		0x1400000
+#define CCSR_GICD_CTLR		0x1000
+#define CCSR_GICC_CTLR		0x2000
+
 /* for big endian registers */
 .macro ls1_set_bits, addr, value
 	ldr	r4, \addr
@@ -85,6 +89,13 @@ ENTRY(ls1_start_fsm)
 
 	ls1_delay	#2000
 
+	mov	r7, #0
+	ldr	r8, ls1_ccsr_gicd_ctlr
+	str	r7, [r8]
+	ldr	r9, ls1_ccsr_gicc_ctlr
+	str	r7, [r9]
+	dsb
+
 	/* Enable all EPU Counters */
 	ls1_set_bits	ls1_dcsr_epu_epgcr_addr, ls1_dcsr_epu_epgcr_val
 
@@ -92,8 +103,10 @@ ENTRY(ls1_start_fsm)
 	ls1_set_bits	ls1_dcsr_epu_epecr15, ls1_dcsr_epu_epecr15_val
 
 	/* Enter WFI mode, and EPU FSM will start */
-20:	wfi
-	b	20b
+	isb
+	wfi
+	nop
+20:	b	20b
 
 ls1_ccsr_scfg_hrstcr_addr:
 	.word	CCSR_SCFG_BASE + CCSR_SCFG_HRSTCR
@@ -119,6 +132,12 @@ ls1_dcsr_epu_epecr15:
 	.word	DCSR_EPU_BASE + DCSR_EPU_EPECR15
 ls1_dcsr_epu_epecr15_val:
 	.word	0x90000004
+
+ls1_ccsr_gicd_ctlr:
+	.word	CCSR_GIC_BASE + CCSR_GICD_CTLR
+
+ls1_ccsr_gicc_ctlr:
+	.word	CCSR_GIC_BASE + CCSR_GICC_CTLR
 
 ENTRY(ls1_sram_code_size)
 	.word	. - ls1_start_fsm

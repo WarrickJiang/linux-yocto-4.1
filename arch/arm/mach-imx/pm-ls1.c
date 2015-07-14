@@ -67,6 +67,9 @@
 #define CCSR_RCPM_IPPDEXPCR1_LPUART	0x40000000
 #define CCSR_RCPM_IPPDEXPCR1_FLEXTIMER	0x20000000
 #define CCSR_RCPM_IPPDEXPCR1_OCRAM1	0x10000000
+#define CCSR_RCPM_NFIQOUTR		0x15c
+#define CCSR_RCPM_NIRQOUTR		0x16c
+#define CCSR_RCPM_DSIMSKR		0x18c
 
 #define QIXIS_CTL_SYS			0x5
 #define QIXIS_CTL_SYS_EVTSW_MASK	0x0c
@@ -172,9 +175,15 @@ static void ls1_pm_uniomap(int deepsleep)
 	iounmap(ls1_pm_base.sram);
 }
 
-static void ls1_setup_pmc_int(void)
+static void ls1_deepsleep_irq(void)
 {
 	u32 pmcintecr;
+
+	/* mask interrupts from GIC */
+	iowrite32be(0x0ffffffff, ls1_pm_base.rcpm + CCSR_RCPM_NFIQOUTR);
+	iowrite32be(0x0ffffffff, ls1_pm_base.rcpm + CCSR_RCPM_NIRQOUTR);
+	/* mask deep sleep wake-up interrupts during deep sleep entry */
+	iowrite32be(0x0ffffffff, ls1_pm_base.rcpm + CCSR_RCPM_DSIMSKR);
 
 	pmcintecr = 0;
 	if (ippdexpcr0 & CCSR_RCPM_IPPDEXPCR0_ETSEC)
@@ -345,7 +354,7 @@ static void ls1_enter_deepsleep(void)
 	/* copy the last stage code to sram */
 	ls1_copy_sram_code();
 
-	ls1_setup_pmc_int();
+	ls1_deepsleep_irq();
 
 	cpu_suspend(SRAM_CODE_BASE_PHY, ls1_start_deepsleep);
 
