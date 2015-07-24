@@ -244,9 +244,9 @@ static int xilinx_drm_load(struct drm_device *drm, unsigned long flags)
 	struct xilinx_drm_private *private;
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
+	struct device_node *encoder_node;
 	struct platform_device *pdev = drm->platformdev;
-	unsigned int bpp;
-	unsigned int align;
+	unsigned int bpp, align, i = 0;
 	int ret;
 
 	private = devm_kzalloc(drm->dev, sizeof(*private), GFP_KERNEL);
@@ -263,20 +263,29 @@ static int xilinx_drm_load(struct drm_device *drm, unsigned long flags)
 		goto err_out;
 	}
 
-	/* create a xilinx encoder */
-	encoder = xilinx_drm_encoder_create(drm);
-	if (IS_ERR(encoder)) {
-		DRM_DEBUG_DRIVER("failed to create xilinx encoder\n");
-		ret = PTR_ERR(encoder);
-		goto err_out;
+	while ((encoder_node = of_parse_phandle(drm->dev->of_node,
+						"xlnx,encoder-slave", i))) {
+		encoder = xilinx_drm_encoder_create(drm, encoder_node);
+		of_node_put(encoder_node);
+		if (IS_ERR(encoder)) {
+			DRM_DEBUG_DRIVER("failed to create xilinx encoder\n");
+			ret = PTR_ERR(encoder);
+			goto err_out;
+		}
+
+		connector = xilinx_drm_connector_create(drm, encoder, i);
+		if (IS_ERR(connector)) {
+			DRM_DEBUG_DRIVER("failed to create xilinx connector\n");
+			ret = PTR_ERR(connector);
+			goto err_out;
+		}
+
+		i++;
 	}
 
-	/* create a xilinx connector */
-	connector = xilinx_drm_connector_create(drm, encoder);
-	if (IS_ERR(connector)) {
-		DRM_DEBUG_DRIVER("failed to create xilinx connector\n");
-		ret = PTR_ERR(connector);
-		goto err_out;
+	if (i == 0) {
+		DRM_ERROR("failed to get an encoder slave node\n");
+		return -ENODEV;
 	}
 
 	ret = drm_vblank_init(drm, 1);
@@ -471,7 +480,9 @@ static int xilinx_drm_platform_probe(struct platform_device *pdev)
 /* exit xilinx drm platform */
 static int xilinx_drm_platform_remove(struct platform_device *pdev)
 {
-	drm_platform_exit(&xilinx_drm_driver, pdev);
+	struct xilinx_drm_private *private = platform_get_drvdata(pdev);
+
+	drm_put_dev(private->drm);
 
 	return 0;
 }
