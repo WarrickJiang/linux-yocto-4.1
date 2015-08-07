@@ -649,14 +649,13 @@ static int write_sr_modify_protection(struct spi_nor *nor, uint8_t status,
 
 static uint8_t bp_bits_from_sr(struct spi_nor *nor, uint8_t status)
 {
-    uint8_t ret;
+	uint8_t ret;
 
-    ret = (((status) & SR_BP_BIT_MASK) >> SR_BP_BIT_OFFSET);
-    if (nor->jedec_id == 0x20) {
-        ret |= ((status & SR_BP3) >> (SR_BP_BIT_OFFSET + 1));
-    }
+	ret = (((status) & SR_BP_BIT_MASK) >> SR_BP_BIT_OFFSET);
+	if (nor->jedec_id == 0x20)
+		ret |= ((status & SR_BP3) >> (SR_BP_BIT_OFFSET + 1));
 
-    return ret;
+	return ret;
 }
 
 static int spi_nor_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
