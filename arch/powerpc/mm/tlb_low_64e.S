@@ -357,23 +357,27 @@ BEGIN_FTR_SECTION		/* CPU_FTR_SMT */
 	 *
 	 * MAS6:IND should be already set based on MAS4
 	 */
-1:	lbarx	r15,0,r11
+	mtocrf  0x01,r11
+	addi    r11,r11,TCD_LOCK-1 /* -1 to compensate for low bit set */
+	bf      31,1f           /* no lock if TLB_PER_CORE_HAS_LOCK clear */
+2:	lbarx	r15,0,r11
 	lhz	r10,PACAPACAINDEX(r13)
 	cmpdi	r15,0
 	cmpdi	cr1,r15,1	/* set cr1.eq = 0 for non-recursive */
 	addi	r10,r10,1
-	bne	2f
+	bne	3f
 	stbcx.	r10,0,r11
-	bne	1b
-3:
+	bne	2b
+4:
 	.subsection 1
-2:	cmpd	cr1,r15,r10	/* recursive lock due to mcheck/crit/etc? */
-	beq	cr1,3b		/* unlock will happen if cr1.eq = 0 */
+3:	cmpd	cr1,r15,r10	/* recursive lock due to mcheck/crit/etc? */
+	beq	cr1,4b		/* unlock will happen if cr1.eq = 0 */
 	lbz	r15,0(r11)
 	cmpdi	r15,0
-	bne	2b
-	b	1b
+	bne	3b
+	b	2b
 	.previous
+1:      subi    r11,r11,TCD_LOCK-1
 
 	/*
 	 * Erratum A-008139 says that we can't use tlbwe to change
@@ -383,6 +387,7 @@ BEGIN_FTR_SECTION		/* CPU_FTR_SMT */
 	 * with tlbilx before overwriting.
 	 */
 
+	rldicr  r11,r11,0,62
 	lbz	r15,TCD_ESEL_NEXT(r11)
 	rlwinm	r10,r15,16,0xff0000
 	oris	r10,r10,MAS0_TLBSEL(1)@h
@@ -495,6 +500,7 @@ BEGIN_FTR_SECTION
 	beq	cr1,1f		/* no unlock if lock was recursively grabbed */
 	li	r15,0
 	isync
+	rldicr  r11,r11,0,62
 	stb	r15,0(r11)
 1:
 END_FTR_SECTION_IFSET(CPU_FTR_SMT)

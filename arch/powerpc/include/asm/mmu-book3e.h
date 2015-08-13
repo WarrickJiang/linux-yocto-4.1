@@ -304,7 +304,7 @@ struct tlb_core_data {
 	/* For software way selection, as on Freescale TLB1 */
 	u8 esel_next, esel_max, esel_first;
 	u8 lrat_next, lrat_max;
-};
+} __attribute__((aligned(4)));
 
 #ifdef CONFIG_PPC64
 extern unsigned long linear_map_top;
