@@ -417,6 +417,20 @@ static int qm_drain_dqrr(struct qm_portal *p)
 	qm_isr_status_clear(p, 0xffffffff);
 	return 0;
 }
+
+int qman_portal_lock(struct qman_portal *p,unsigned long irqflags)
+{
+    spin_lock_irqsave(&p->cgr_lock, irqflags);
+    return 0;
+
+}
+
+int qman_portal_unlock(struct qman_portal *p,unsigned long irqflags)
+{
+    spin_unlock_irqrestore(&p->cgr_lock, irqflags);
+    return 0;
+} 
+
 #else
 static inline int qm_drain_dqrr(struct qm_portal *p) { return 1; }
 #endif

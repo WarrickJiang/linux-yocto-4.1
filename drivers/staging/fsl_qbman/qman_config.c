@@ -1142,9 +1142,12 @@ void of_fsl_qman_shutdown(struct platform_device *ofdev)
 {
 	int cpu;
 	struct qman_portal *p;
+	unsigned long irqflags __maybe_unused; 
 	for_each_online_cpu(cpu) {
 		p = per_cpu_affine_portal(cpu);
+		qman_portal_lock(p,irqflags);
 		qman_static_dequeue_del_ex(p, ~0);
+		qman_portal_unlock(p,irqflags);
 	}
 	return;
 };
