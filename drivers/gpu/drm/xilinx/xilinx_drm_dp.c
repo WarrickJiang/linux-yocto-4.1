@@ -485,10 +485,10 @@ static void xilinx_drm_dp_adjust_train(struct xilinx_drm_dp *dp,
 			preemphasis = p;
 	}
 
-	if (voltage >= DP_TRAIN_VOLTAGE_SWING_1200)
+	if (voltage >= DP_TRAIN_VOLTAGE_SWING_LEVEL_3)
 		voltage |= DP_TRAIN_MAX_SWING_REACHED;
 
-	if (preemphasis >= DP_TRAIN_PRE_EMPHASIS_9_5)
+	if (preemphasis >= DP_TRAIN_PRE_EMPH_LEVEL_3)
 		preemphasis |= DP_TRAIN_MAX_PRE_EMPHASIS_REACHED;
 
 	for (i = 0; i < dp->mode.lane_cnt; i++)
@@ -1224,7 +1224,7 @@ static int xilinx_drm_dp_parse_of(struct xilinx_drm_dp *dp)
 		num_colors = 3;
 	} else if (config->enable_ycrcb && strcmp(string, "ycrcb422") == 0) {
 		config->misc0 |= XILINX_DP_MISC0_YCRCB_422;
-		num_colors = 3;
+		num_colors = 2;
 	} else if (config->enable_ycrcb && strcmp(string, "ycrcb444") == 0) {
 		config->misc0 |= XILINX_DP_MISC0_YCRCB_444;
 		num_colors = 3;
