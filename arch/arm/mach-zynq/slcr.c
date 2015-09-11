@@ -15,6 +15,7 @@
  */
 
 #include <linux/io.h>
+#include <linux/module.h>
 #include <linux/mfd/syscon.h>
 #include <linux/of_address.h>
 #include <linux/regmap.h>
@@ -23,10 +24,14 @@
 
 /* register offsets */
 #define SLCR_UNLOCK_OFFSET		0x8   /* SCLR unlock register */
+
 #define SLCR_PS_RST_CTRL_OFFSET		0x200 /* PS Software Reset Control */
+#define SLCR_FPGA_RST_CTRL_OFFSET	0x240 /* FPGA Software Reset Control */
 #define SLCR_A9_CPU_RST_CTRL_OFFSET	0x244 /* CPU Software Reset Control */
 #define SLCR_REBOOT_STATUS_OFFSET	0x258 /* PS Reboot Status */
 #define SLCR_PSS_IDCODE			0x530 /* PS IDCODE */
+#define SLCR_LVL_SHFTR_EN_OFFSET	0x900 /* Level Shifters Enable */
+#define SLCR_OCM_CFG_OFFSET		0x910 /* OCM Address Mapping */
 
 #define SLCR_UNLOCK_MAGIC		0xDF0D
 #define SLCR_A9_CPU_CLKSTOP		0x10
@@ -34,7 +39,7 @@
 #define SLCR_PSS_IDCODE_DEVICE_SHIFT	12
 #define SLCR_PSS_IDCODE_DEVICE_MASK	0x1F
 
-static void __iomem *zynq_slcr_base;
+void __iomem *zynq_slcr_base;
 static struct regmap *zynq_slcr_regmap;
 
 /**
@@ -114,6 +119,48 @@ void zynq_slcr_system_reset(void)
 	zynq_slcr_write(reboot & 0xF0FFFFFF, SLCR_REBOOT_STATUS_OFFSET);
 	zynq_slcr_write(1, SLCR_PS_RST_CTRL_OFFSET);
 }
+
+/**
+ * zynq_slcr_get_ocm_config - Get SLCR OCM config
+ *
+ * return:	OCM config bits
+ */
+u32 zynq_slcr_get_ocm_config(void)
+{
+	u32 ret;
+
+	zynq_slcr_read(&ret, SLCR_OCM_CFG_OFFSET);
+	return ret;
+}
+
+/**
+ * zynq_slcr_init_preload_fpga - Disable communication from the PL to PS.
+ */
+void zynq_slcr_init_preload_fpga(void)
+{
+	/* Assert FPGA top level output resets */
+	zynq_slcr_write(0xF, SLCR_FPGA_RST_CTRL_OFFSET);
+
+	/* Disable level shifters */
+	zynq_slcr_write(0, SLCR_LVL_SHFTR_EN_OFFSET);
+
+	/* Enable output level shifters */
+	zynq_slcr_write(0xA, SLCR_LVL_SHFTR_EN_OFFSET);
+}
+EXPORT_SYMBOL(zynq_slcr_init_preload_fpga);
+
+/**
+ * zynq_slcr_init_postload_fpga - Re-enable communication from the PL to PS.
+ */
+void zynq_slcr_init_postload_fpga(void)
+{
+	/* Enable level shifters */
+	zynq_slcr_write(0xf, SLCR_LVL_SHFTR_EN_OFFSET);
+
+	/* Deassert AXI interface resets */
+	zynq_slcr_write(0, SLCR_FPGA_RST_CTRL_OFFSET);
+}
+EXPORT_SYMBOL(zynq_slcr_init_postload_fpga);
 
 /**
  * zynq_slcr_cpu_start - Start cpu
