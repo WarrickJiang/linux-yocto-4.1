@@ -421,4 +421,5 @@
 	usb-phy = <&usb_phy0>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usb0_default>;
+	xlnx,phy-reset-gpio = <&gpio0 7 0>;
 };
