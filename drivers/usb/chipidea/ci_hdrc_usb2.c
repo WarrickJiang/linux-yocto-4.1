@@ -18,6 +18,7 @@
 #include <linux/usb/chipidea.h>
 #include <linux/usb/hcd.h>
 #include <linux/usb/ulpi.h>
+#include <linux/of_gpio.h>
 
 #include "ci.h"
 
@@ -45,10 +46,34 @@ MODULE_DEVICE_TABLE(of, ci_hdrc_usb2_of_match);
 static int ci_hdrc_usb2_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct device_node *np = pdev->dev.of_node;
 	struct ci_hdrc_usb2_priv *priv;
 	struct ci_hdrc_platform_data *ci_pdata = dev_get_platdata(dev);
-	int ret;
 	const struct of_device_id *match;
+	int ret, reset_gpio;
+
+	/*
+	 * For zynq-usb-1.00.a, we need set GPIO at first, so we do
+	 * this quirk fix
+	 */
+	reset_gpio = of_get_named_gpio(np, "xlnx,phy-reset-gpio", 0);
+	if (gpio_is_valid(reset_gpio)) {
+		ret = devm_gpio_request_one(&pdev->dev, reset_gpio,
+				GPIOF_INIT_LOW, "ulpi resetb");
+		if (ret) {
+			dev_err(&pdev->dev, "Failed to request ULPI \
+				reset gpio: %d\n", ret);
+			return ret;
+		}
+		/* ULPI Datasheet specifies a 1us pulse width for reset */
+		udelay(1);
+		if (of_property_read_bool(np, "xlnx,phy-reset-gpio-tristate"))
+			gpio_direction_input(reset_gpio);
+		else
+			gpio_set_value_cansleep(reset_gpio, 1);
+		/* ULPI will assert the DIR line, give it time to do so */
+		udelay(1);
+	}
 
 	if (!ci_pdata)
 		ci_pdata = &ci_default_pdata;
