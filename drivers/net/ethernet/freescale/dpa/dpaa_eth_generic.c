@@ -751,7 +751,7 @@ static int dpa_generic_netdev_init(struct device_node *dpa_node,
 	memcpy(netdev->perm_addr, mac_addr, netdev->addr_len);
 	memcpy(netdev->dev_addr, mac_addr, netdev->addr_len);
 
-	SET_ETHTOOL_OPS(netdev, &dpa_generic_ethtool_ops);
+	netdev->ethtool_ops = &dpa_generic_ethtool_ops;
 
 	netdev->needed_headroom = priv->tx_headroom;
 	netdev->watchdog_timeo = msecs_to_jiffies(tx_timeout);
