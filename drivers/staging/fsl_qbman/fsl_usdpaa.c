@@ -355,8 +355,6 @@ static int usdpaa_open(struct inode *inode, struct file *filp)
 	INIT_LIST_HEAD(&ctx->portals);
 	spin_lock_init(&ctx->lock);
 
-	filp->f_mapping->backing_dev_info = &directly_mappable_cdev_bdi;
-
 	return 0;
 }
 
