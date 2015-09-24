@@ -1215,7 +1215,7 @@ static struct iommu_domain *fsl_get_dev_domain(struct device *dev)
 
 	info = dev->archdata.iommu_domain;
 	if (info && info->domain)
-		return info->domain->iommu_domain;
+		return &info->domain->iommu_domain;
 
 	return NULL;
 }
