@@ -117,7 +117,7 @@ static inline void put_affine_portal(void)
 }
 static inline struct bman_portal *get_poll_portal(void)
 {
-	return &__get_cpu_var(bman_affine_portal);
+	return this_cpu_ptr(&bman_affine_portal);
 }
 #define put_poll_portal()
 

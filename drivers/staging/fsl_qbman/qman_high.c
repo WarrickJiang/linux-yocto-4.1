@@ -194,7 +194,7 @@ static inline void put_affine_portal(void)
  * this case to not disable pre-emption. */
 static inline struct qman_portal *get_poll_portal(void)
 {
-	return &__get_cpu_var(qman_affine_portal);
+	return this_cpu_ptr(&qman_affine_portal);
 }
 #define put_poll_portal()
 
