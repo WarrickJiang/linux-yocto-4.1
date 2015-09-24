@@ -424,8 +424,8 @@ priv_rx_error_dqrr(struct qman_portal		*portal,
 	net_dev = ((struct dpa_fq *)fq)->net_dev;
 	priv = netdev_priv(net_dev);
 
-	percpu_priv = __this_cpu_ptr(priv->percpu_priv);
-	count_ptr = __this_cpu_ptr(priv->dpa_bp->percpu_count);
+	percpu_priv = raw_cpu_ptr(priv->percpu_priv);
+	count_ptr = raw_cpu_ptr(priv->dpa_bp->percpu_count);
 
 	if (dpaa_eth_napi_schedule(percpu_priv, portal))
 		return qman_cb_dqrr_stop;
@@ -461,9 +461,9 @@ priv_rx_default_dqrr(struct qman_portal		*portal,
 	/* Trace the Rx fd */
 	trace_dpa_rx_fd(net_dev, fq, &dq->fd);
 
-	/* IRQ handler, non-migratable; safe to use __this_cpu_ptr here */
-	percpu_priv = __this_cpu_ptr(priv->percpu_priv);
-	count_ptr = __this_cpu_ptr(dpa_bp->percpu_count);
+	/* IRQ handler, non-migratable; safe to use raw_cpu_ptr here */
+	percpu_priv = raw_cpu_ptr(priv->percpu_priv);
+	count_ptr = raw_cpu_ptr(dpa_bp->percpu_count);
 
 	if (unlikely(dpaa_eth_napi_schedule(percpu_priv, portal)))
 		return qman_cb_dqrr_stop;
@@ -495,7 +495,7 @@ priv_tx_conf_error_dqrr(struct qman_portal		*portal,
 	net_dev = ((struct dpa_fq *)fq)->net_dev;
 	priv = netdev_priv(net_dev);
 
-	percpu_priv = __this_cpu_ptr(priv->percpu_priv);
+	percpu_priv = raw_cpu_ptr(priv->percpu_priv);
 
 	if (dpaa_eth_napi_schedule(percpu_priv, portal))
 		return qman_cb_dqrr_stop;
@@ -520,8 +520,8 @@ priv_tx_conf_default_dqrr(struct qman_portal		*portal,
 	/* Trace the fd */
 	trace_dpa_tx_conf_fd(net_dev, fq, &dq->fd);
 
-	/* Non-migratable context, safe to use __this_cpu_ptr */
-	percpu_priv = __this_cpu_ptr(priv->percpu_priv);
+	/* Non-migratable context, safe to use raw_cpu_ptr */
+	percpu_priv = raw_cpu_ptr(priv->percpu_priv);
 
 	if (dpaa_eth_napi_schedule(percpu_priv, portal))
 		return qman_cb_dqrr_stop;
@@ -543,8 +543,8 @@ void priv_ern(struct qman_portal	*portal,
 
 	net_dev = ((struct dpa_fq *)fq)->net_dev;
 	priv = netdev_priv(net_dev);
-	/* Non-migratable context, safe to use __this_cpu_ptr */
-	percpu_priv = __this_cpu_ptr(priv->percpu_priv);
+	/* Non-migratable context, safe to use raw_cpu_ptr */
+	percpu_priv = raw_cpu_ptr(priv->percpu_priv);
 
 	percpu_priv->stats.tx_dropped++;
 	percpu_priv->stats.tx_fifo_errors++;
@@ -640,7 +640,7 @@ static void dpaa_eth_poll_controller(struct net_device *net_dev)
 {
 	struct dpa_priv_s *priv = netdev_priv(net_dev);
 	struct dpa_percpu_priv_s *percpu_priv =
-		__this_cpu_ptr(priv->percpu_priv);
+		raw_cpu_ptr(priv->percpu_priv);
 	struct qman_portal *p;
 	const struct qman_portal_config *pc;
 	struct dpa_napi_portal *np;

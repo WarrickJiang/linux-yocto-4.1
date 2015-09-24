@@ -860,10 +860,10 @@ int __hot dpa_tx(struct sk_buff *skb, struct net_device *net_dev)
 		return NETDEV_TX_OK;
 #endif
 	priv = netdev_priv(net_dev);
-	/* Non-migratable context, safe to use __this_cpu_ptr */
-	percpu_priv = __this_cpu_ptr(priv->percpu_priv);
+	/* Non-migratable context, safe to use raw_cpu_ptr */
+	percpu_priv = raw_cpu_ptr(priv->percpu_priv);
 	percpu_stats = &percpu_priv->stats;
-	countptr = __this_cpu_ptr(priv->dpa_bp->percpu_count);
+	countptr = raw_cpu_ptr(priv->dpa_bp->percpu_count);
 
 	clear_fd(&fd);
 

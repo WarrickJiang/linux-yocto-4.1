@@ -291,8 +291,8 @@ dpa_generic_rx_err_dqrr(struct qman_portal *portal,
 
 	netdev = ((struct dpa_fq *)fq)->net_dev;
 	priv = netdev_priv(netdev);
-	percpu_priv = __this_cpu_ptr(priv->percpu_priv);
-	countptr = __this_cpu_ptr(priv->rx_bp->percpu_count);
+	percpu_priv = raw_cpu_ptr(priv->percpu_priv);
+	countptr = raw_cpu_ptr(priv->rx_bp->percpu_count);
 	fd = &dq->fd;
 
 	/* TODO: extract bpid from the fd; when multiple bps are supported
@@ -364,8 +364,8 @@ dpa_generic_rx_dqrr(struct qman_portal *portal,
 
 	netdev = ((struct dpa_fq *)fq)->net_dev;
 	priv = netdev_priv(netdev);
-	percpu_priv = __this_cpu_ptr(priv->percpu_priv);
-	countptr = __this_cpu_ptr(priv->rx_bp->percpu_count);
+	percpu_priv = raw_cpu_ptr(priv->percpu_priv);
+	countptr = raw_cpu_ptr(priv->rx_bp->percpu_count);
 
 	/* This is needed for TCP traffic as draining only on TX is not
 	 * enough
@@ -416,7 +416,7 @@ dpa_generic_rx_dqrr(struct qman_portal *portal,
 
 	dma_unmap_single(bp->dev, addr, bp->size, DMA_BIDIRECTIONAL);
 
-	countptr = __this_cpu_ptr(bp->percpu_count);
+	countptr = raw_cpu_ptr(bp->percpu_count);
 	(*countptr)--;
 
 	/* The skb is currently pointed at head + headroom. The packet
@@ -455,7 +455,7 @@ static void dpa_generic_drain_bp(struct dpa_bp *bp, u8 nbuf)
 	int ret, i;
 	struct bm_buffer bmb[8];
 	dma_addr_t addr;
-	int *countptr = __this_cpu_ptr(bp->percpu_count);
+	int *countptr = raw_cpu_ptr(bp->percpu_count);
 	int count = *countptr;
 	struct sk_buff **skbh;
 
@@ -586,7 +586,7 @@ static int __hot dpa_generic_tx(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct dpa_generic_priv_s *priv = netdev_priv(netdev);
 	struct dpa_percpu_priv_s *percpu_priv =
-		__this_cpu_ptr(priv->percpu_priv);
+		raw_cpu_ptr(priv->percpu_priv);
 	struct rtnl_link_stats64 *percpu_stats = &percpu_priv->stats;
 	struct dpa_bp *bp = priv->draining_tx_bp;
 	struct sk_buff **skbh = NULL;
@@ -663,7 +663,7 @@ static int __hot dpa_generic_tx(struct sk_buff *skb, struct net_device *netdev)
 		goto xmit_failed;
 	}
 
-	countptr = __this_cpu_ptr(bp->percpu_count);
+	countptr = raw_cpu_ptr(bp->percpu_count);
 	(*countptr)++;
 
 	percpu_stats->tx_packets++;
@@ -900,8 +900,8 @@ static void dpa_generic_ern(struct qman_portal *portal,
 
 	netdev = ((struct dpa_fq *)fq)->net_dev;
 	priv = netdev_priv(netdev);
-	/* Non-migratable context, safe to use __this_cpu_ptr */
-	percpu_priv = __this_cpu_ptr(priv->percpu_priv);
+	/* Non-migratable context, safe to use raw_cpu_ptr */
+	percpu_priv = raw_cpu_ptr(priv->percpu_priv);
 	percpu_priv->stats.tx_dropped++;
 	percpu_priv->stats.tx_fifo_errors++;
 	count_ern(percpu_priv, msg);

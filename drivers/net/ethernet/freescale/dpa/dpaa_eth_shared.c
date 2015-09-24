@@ -239,7 +239,7 @@ shared_rx_dqrr(struct qman_portal *portal, struct qman_fq *fq,
 	net_dev = ((struct dpa_fq *)fq)->net_dev;
 	priv = netdev_priv(net_dev);
 
-	percpu_priv = __this_cpu_ptr(priv->percpu_priv);
+	percpu_priv = raw_cpu_ptr(priv->percpu_priv);
 
 	dpa_bp = dpa_bpid2pool(fd->bpid);
 	BUG_ON(!dpa_bp);
@@ -375,7 +375,7 @@ shared_tx_error_dqrr(struct qman_portal                *portal,
 	dpa_bp = dpa_bpid2pool(fd->bpid);
 	BUG_ON(!dpa_bp);
 
-	percpu_priv = __this_cpu_ptr(priv->percpu_priv);
+	percpu_priv = raw_cpu_ptr(priv->percpu_priv);
 
 	if (netif_msg_hw(priv) && net_ratelimit())
 		netdev_warn(net_dev, "FD status = 0x%08x\n",
@@ -408,7 +408,7 @@ shared_tx_default_dqrr(struct qman_portal              *portal,
 	dpa_bp = dpa_bpid2pool(fd->bpid);
 	BUG_ON(!dpa_bp);
 
-	percpu_priv = __this_cpu_ptr(priv->percpu_priv);
+	percpu_priv = raw_cpu_ptr(priv->percpu_priv);
 
 	if (unlikely(fd->status & FM_FD_STAT_TX_ERRORS) != 0) {
 		if (netif_msg_hw(priv) && net_ratelimit())
@@ -439,7 +439,7 @@ static void shared_ern(struct qman_portal	*portal,
 
 	net_dev = dpa_fq->net_dev;
 	priv = netdev_priv(net_dev);
-	percpu_priv = __this_cpu_ptr(priv->percpu_priv);
+	percpu_priv = raw_cpu_ptr(priv->percpu_priv);
 
 	dpa_fd_release(net_dev, &msg->ern.fd);
 
@@ -462,7 +462,7 @@ int __hot dpa_shared_tx(struct sk_buff *skb, struct net_device *net_dev)
 	fm_prs_result_t *parse_results_ref;
 
 	priv = netdev_priv(net_dev);
-	percpu_priv = __this_cpu_ptr(priv->percpu_priv);
+	percpu_priv = raw_cpu_ptr(priv->percpu_priv);
 
 	memset(&fd, 0, sizeof(fd));
 	fd.format = qm_fd_contig;
