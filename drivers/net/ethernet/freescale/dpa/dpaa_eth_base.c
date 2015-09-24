@@ -177,8 +177,8 @@ int dpa_bp_shared_port_seed(struct dpa_bp *bp)
 	/* allocate memory region for buffers */
 	devm_request_mem_region(bp->dev, bp->paddr,
 			bp->size * bp->config_count, KBUILD_MODNAME);
-	bp->vaddr = devm_ioremap_prot(bp->dev, bp->paddr,
-			bp->size * bp->config_count, 0);
+	bp->vaddr = devm_ioremap(bp->dev, bp->paddr,
+			bp->size * bp->config_count);
 	if (bp->vaddr == NULL) {
 		pr_err("Could not map memory for pool %d\n", bp->bpid);
 		return -EIO;
