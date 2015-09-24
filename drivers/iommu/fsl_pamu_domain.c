@@ -726,7 +726,7 @@ static struct device *get_dma_device(struct device *dev)
 static int fsl_pamu_attach_device(struct iommu_domain *domain,
 				  struct device *dev)
 {
-	struct fsl_dma_domain *dma_domain = domain->priv;
+	struct fsl_dma_domain *dma_domain = to_fsl_dma_domain(domain);
 	struct device *dma_dev;
 	const u32 *liodn;
 	u32 liodn_cnt;
