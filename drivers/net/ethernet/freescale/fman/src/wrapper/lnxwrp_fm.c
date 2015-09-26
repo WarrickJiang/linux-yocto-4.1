@@ -60,7 +60,6 @@
 #include <asm/errno.h>
 #include <asm/qe.h>        /* For struct qe_firmware */
 #include <sysdev/fsl_soc.h>
-#include <asm/fsl_pm.h>
 #include <asm/fsl_guts.h>
 #include <linux/stat.h>	   /* For file access mask */
 #include <linux/skbuff.h>
