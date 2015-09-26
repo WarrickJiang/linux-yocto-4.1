@@ -807,14 +807,14 @@ static ssize_t show_fm_port_qmi_regs(struct device *dev,
 #endif
 }
 
-static DEVICE_ATTR(fm_port_regs, 0x644, show_fm_port_regs, NULL);
-static DEVICE_ATTR(fm_port_qmi_regs, 0x644, show_fm_port_qmi_regs, NULL);
-static DEVICE_ATTR(fm_port_bmi_regs, 0x644, show_fm_port_bmi_regs, NULL);
+static DEVICE_ATTR(fm_port_regs, S_IRUGO, show_fm_port_regs, NULL);
+static DEVICE_ATTR(fm_port_qmi_regs, S_IRUGO, show_fm_port_qmi_regs, NULL);
+static DEVICE_ATTR(fm_port_bmi_regs, S_IRUGO, show_fm_port_bmi_regs, NULL);
 #if (DPAA_VERSION >= 11)
-static DEVICE_ATTR(fm_port_ipv4_opt, 0x644, show_fm_port_ipv4_options, NULL);
+static DEVICE_ATTR(fm_port_ipv4_opt, S_IRUGO, show_fm_port_ipv4_options, NULL);
 #endif
-static DEVICE_ATTR(fm_port_dsar_regs, 0x644, show_fm_port_dsar_regs, NULL);
-static DEVICE_ATTR(fm_port_dsar_mem, 0x644, show_fm_port_dsar_mem, NULL);
+static DEVICE_ATTR(fm_port_dsar_regs, S_IRUGO, show_fm_port_dsar_regs, NULL);
+static DEVICE_ATTR(fm_port_dsar_mem, S_IRUGO, show_fm_port_dsar_mem, NULL);
 
 int fm_port_sysfs_create(struct device *dev)
 {
