@@ -273,7 +273,7 @@ static void create_per_cpu_handlers(void)
 {
 	struct hp_handler *handler;
 	int loop;
-	struct hp_cpu *hp_cpu = &__get_cpu_var(hp_cpus);
+	struct hp_cpu *hp_cpu = this_cpu_ptr(&hp_cpus);
 
 	hp_cpu->processor_id = smp_processor_id();
 	spin_lock(&hp_lock);
@@ -295,7 +295,7 @@ static void create_per_cpu_handlers(void)
 static void destroy_per_cpu_handlers(void)
 {
 	struct list_head *loop, *tmp;
-	struct hp_cpu *hp_cpu = &__get_cpu_var(hp_cpus);
+	struct hp_cpu *hp_cpu = this_cpu_ptr(&hp_cpus);
 
 	spin_lock(&hp_lock);
 	list_del(&hp_cpu->node);
