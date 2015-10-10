@@ -670,7 +670,7 @@ static int compression_stateless_truncation_deflate_compoundframes_init(void)
 		},
 	};
 
-	cpumask_scnprintf(big_buf, 200, &new_mask);
+	snprintf(big_buf, 200, "%*pb\n", cpumask_pr_args(&new_mask));
 
 	pr_info("DCE TEST Start, cpu_mask = %s\n", big_buf);
 
