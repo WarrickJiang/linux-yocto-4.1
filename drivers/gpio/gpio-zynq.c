@@ -720,7 +720,7 @@ static int __init zynq_gpio_init(void)
 {
 	return platform_driver_register(&zynq_gpio_driver);
 }
-postcore_initcall(zynq_gpio_init);
+module_init(zynq_gpio_init);
 
 MODULE_AUTHOR("Xilinx Inc.");
 MODULE_DESCRIPTION("Zynq GPIO driver");
