@@ -298,7 +298,7 @@ static void esdhci_of_adma_workaround(struct sdhci_host *host, u32 intmask)
 		 * terminating descriptor.
 		 */
 		desc += 8;
-		WARN_ON((desc - host->adma_table) > (128 * 2 + 1) * 4);
+		WARN_ON((desc - (u8 *)host->adma_table) > (128 * 2 + 1) * 4);
 
 		dataddr = (__le32 __force *)(desc + 4);
 		cmdlen = (__le32 __force *)desc;
