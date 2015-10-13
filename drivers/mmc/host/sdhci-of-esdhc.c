@@ -504,7 +504,9 @@ static void esdhc_pltfm_set_bus_width(struct sdhci_host *host, int width)
 
 static void esdhc_reset(struct sdhci_host *host, u8 mask)
 {
+	esdhc_of_platform_reset_enter(host, mask);
 	sdhci_reset(host, mask);
+	esdhc_of_platform_reset_exit(host, mask);
 
 	sdhci_writel(host, host->ier, SDHCI_INT_ENABLE);
 	sdhci_writel(host, host->ier, SDHCI_SIGNAL_ENABLE);
@@ -550,8 +552,6 @@ static const struct sdhci_ops sdhci_esdhc_ops = {
 	.get_min_clock = esdhc_of_get_min_clock,
 	.get_platform_irq = esdhc_get_pltfm_irq,
 	.handle_platform_irq = esdhc_pltfm_irq_handler,
-	.platform_reset_enter = esdhc_of_platform_reset_enter,
-	.platform_reset_exit = esdhc_of_platform_reset_exit,
 	.platform_init = esdhc_of_platform_init,
 	.get_cd = esdhc_of_get_cd,
 	.adma_workaround = esdhci_of_adma_workaround,
