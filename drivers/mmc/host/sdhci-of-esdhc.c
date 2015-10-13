@@ -284,7 +284,7 @@ static void esdhci_of_adma_workaround(struct sdhci_host *host, u32 intmask)
 			host->data->error = 0;
 
 		BUG_ON(!host->data);
-		desc = host->adma_desc;
+		desc = host->adma_table;
 		for_each_sg(host->data->sg, sg, host->sg_count, i) {
 			addr = sg_dma_address(sg);
 			offset = (4 - (addr & 0x3)) & 0x3;
@@ -298,7 +298,7 @@ static void esdhci_of_adma_workaround(struct sdhci_host *host, u32 intmask)
 		 * terminating descriptor.
 		 */
 		desc += 8;
-		WARN_ON((desc - host->adma_desc) > (128 * 2 + 1) * 4);
+		WARN_ON((desc - host->adma_table) > (128 * 2 + 1) * 4);
 
 		dataddr = (__le32 __force *)(desc + 4);
 		cmdlen = (__le32 __force *)desc;
