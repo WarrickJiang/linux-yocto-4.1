@@ -894,10 +894,10 @@ void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card)
 		}
 	}
 
-	if (host->max_discard_to &&
-			(host->max_discard_to <
+	if (host->max_busy_timeout &&
+			(host->max_busy_timeout <
 			(data->timeout_ns / 1000000)))
-		data->timeout_ns = host->max_discard_to * 1000000;
+		data->timeout_ns = host->max_busy_timeout * 1000000;
 
 }
 EXPORT_SYMBOL(mmc_set_data_timeout);
@@ -2352,7 +2352,7 @@ unsigned int mmc_calc_max_discard(struct mmc_card *card)
 	struct mmc_host *host = card->host;
 	unsigned int max_discard, max_trim;
 
-	if (!host->max_discard_to) {
+	if (!host->max_busy_timeout) {
 
 		/*
 		 * Without erase_group_def set, MMC erase timeout depends

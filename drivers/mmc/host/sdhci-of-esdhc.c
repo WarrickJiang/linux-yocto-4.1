@@ -396,7 +396,7 @@ static void esdhc_of_set_clock(struct sdhci_host *host, unsigned int clock)
 
 	if (host->quirks & SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK) {
 		host->timeout_clk = actual_clk / 1000;
-		host->mmc->max_discard_to = (1 << 27) / host->timeout_clk;
+		host->mmc->max_busy_timeout = (1 << 27) / host->timeout_clk;
 	}
 }
 
