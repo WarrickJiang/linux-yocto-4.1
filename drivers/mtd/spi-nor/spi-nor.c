@@ -505,101 +505,220 @@ erase_err:
 	return ret;
 }
 
-static int stm_lock(struct spi_nor *nor, loff_t ofs, uint64_t len)
+static inline uint16_t min_lockable_sectors(struct spi_nor *nor,
+					    uint16_t n_sectors)
 {
-	struct mtd_info *mtd = nor->mtd;
-	uint32_t offset = ofs;
-	uint8_t status_old, status_new;
-	int ret = 0;
+	uint16_t lock_granularity;
 
-	status_old = read_sr(nor);
-
-	if (offset < mtd->size - (mtd->size / 2))
-		status_new = status_old | SR_BP2 | SR_BP1 | SR_BP0;
-	else if (offset < mtd->size - (mtd->size / 4))
-		status_new = (status_old & ~SR_BP0) | SR_BP2 | SR_BP1;
-	else if (offset < mtd->size - (mtd->size / 8))
-		status_new = (status_old & ~SR_BP1) | SR_BP2 | SR_BP0;
-	else if (offset < mtd->size - (mtd->size / 16))
-		status_new = (status_old & ~(SR_BP0 | SR_BP1)) | SR_BP2;
-	else if (offset < mtd->size - (mtd->size / 32))
-		status_new = (status_old & ~SR_BP2) | SR_BP1 | SR_BP0;
-	else if (offset < mtd->size - (mtd->size / 64))
-		status_new = (status_old & ~(SR_BP2 | SR_BP0)) | SR_BP1;
+	/*
+	 * Revisit - SST (not used by us) has the same JEDEC ID as micron but
+	 * protected area table is similar to that of spansion.
+	 */
+	if (nor->jedec_id == CFI_MFR_ST)	/* Micron */
+		lock_granularity = 1;
 	else
-		status_new = (status_old & ~(SR_BP2 | SR_BP1)) | SR_BP0;
+		lock_granularity = max(1, n_sectors/M25P_MAX_LOCKABLE_SECTORS);
 
-	/* Only modify protection if it will not unlock other areas */
-	if ((status_new & (SR_BP2 | SR_BP1 | SR_BP0)) >
-				(status_old & (SR_BP2 | SR_BP1 | SR_BP0))) {
-		write_enable(nor);
-		ret = write_sr(nor, status_new);
-	}
-
-	return ret;
+	return lock_granularity;
 }
 
-static int stm_unlock(struct spi_nor *nor, loff_t ofs, uint64_t len)
+static inline uint32_t get_protected_area_start(struct spi_nor *nor,
+						uint8_t lock_bits)
 {
-	struct mtd_info *mtd = nor->mtd;
-	uint32_t offset = ofs;
-	uint8_t status_old, status_new;
-	int ret = 0;
+	u16 n_sectors;
+	u32 sector_size;
+	uint64_t mtd_size;
 
-	status_old = read_sr(nor);
+	n_sectors = nor->n_sectors;
+	sector_size = nor->sector_size;
+	mtd_size = nor->mtd->size;
 
-	if (offset+len > mtd->size - (mtd->size / 64))
-		status_new = status_old & ~(SR_BP2 | SR_BP1 | SR_BP0);
-	else if (offset+len > mtd->size - (mtd->size / 32))
-		status_new = (status_old & ~(SR_BP2 | SR_BP1)) | SR_BP0;
-	else if (offset+len > mtd->size - (mtd->size / 16))
-		status_new = (status_old & ~(SR_BP2 | SR_BP0)) | SR_BP1;
-	else if (offset+len > mtd->size - (mtd->size / 8))
-		status_new = (status_old & ~SR_BP2) | SR_BP1 | SR_BP0;
-	else if (offset+len > mtd->size - (mtd->size / 4))
-		status_new = (status_old & ~(SR_BP0 | SR_BP1)) | SR_BP2;
-	else if (offset+len > mtd->size - (mtd->size / 2))
-		status_new = (status_old & ~SR_BP1) | SR_BP2 | SR_BP0;
-	else
-		status_new = (status_old & ~SR_BP0) | SR_BP2 | SR_BP1;
-
-	/* Only modify protection if it will not lock other areas */
-	if ((status_new & (SR_BP2 | SR_BP1 | SR_BP0)) <
-				(status_old & (SR_BP2 | SR_BP1 | SR_BP0))) {
-		write_enable(nor);
-		ret = write_sr(nor, status_new);
+	if (nor->isparallel) {
+		sector_size = (nor->sector_size >> 1);
+		mtd_size = (nor->mtd->size >> 1);
+	}
+	if (nor->isstacked) {
+		n_sectors = (nor->n_sectors >> 1);
+		mtd_size = (nor->mtd->size >> 1);
 	}
 
-	return ret;
+	return mtd_size - (1<<(lock_bits-1)) *
+		min_lockable_sectors(nor, n_sectors) * sector_size;
+}
+
+static uint8_t min_protected_area_including_offset(struct spi_nor *nor,
+						   uint32_t offset)
+{
+	uint8_t lock_bits, lockbits_limit;
+
+	/*
+	 * Revisit - SST (not used by us) has the same JEDEC ID as micron but
+	 * protected area table is similar to that of spansion.
+	 * Micron has 4 block protect bits.
+	 */
+	lockbits_limit = 7;
+	if (nor->jedec_id == CFI_MFR_ST)	/* Micron */
+		lockbits_limit = 15;
+
+	for (lock_bits = 1; lock_bits < lockbits_limit; lock_bits++) {
+		if (offset >= get_protected_area_start(nor, lock_bits))
+			break;
+	}
+	return lock_bits;
+}
+
+static int write_sr_modify_protection(struct spi_nor *nor, uint8_t status,
+				      uint8_t lock_bits)
+{
+	uint8_t status_new, bp_mask;
+	u16 val;
+
+	status_new = status & ~SR_BP_BIT_MASK;
+	bp_mask = (lock_bits << SR_BP_BIT_OFFSET) & SR_BP_BIT_MASK;
+
+	/* Micron */
+	if (nor->jedec_id == CFI_MFR_ST) {
+		/* To support chips with more than 896 sectors (56MB) */
+		status_new &= ~SR_BP3;
+
+		/* Protected area starts from top */
+		status_new &= ~SR_BP_TB;
+
+		if (lock_bits > 7)
+			bp_mask |= SR_BP3;
+	}
+
+	status_new |= bp_mask;
+
+	write_enable(nor);
+
+	/* For spansion flashes */
+	if (nor->jedec_id == CFI_MFR_AMD) {
+		val = read_cr(nor) << 8;
+		val |= status_new;
+		if (write_sr_cr(nor, val) < 0)
+			return 1;
+	} else {
+		if (write_sr(nor, status_new) < 0)
+			return 1;
+	}
+	return 0;
 }
 
 static int spi_nor_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 {
 	struct spi_nor *nor = mtd_to_spi_nor(mtd);
-	int ret;
+	uint32_t offset = ofs;
+	uint8_t status;
+	uint8_t lock_bits;
+	int ret = 0;
 
 	ret = spi_nor_lock_and_prep(nor, SPI_NOR_OPS_LOCK);
 	if (ret)
 		return ret;
 
-	ret = nor->flash_lock(nor, ofs, len);
+	if (nor->isparallel == 1)
+		offset /= 2;
 
-	spi_nor_unlock_and_unprep(nor, SPI_NOR_OPS_UNLOCK);
+	if (nor->isstacked == 1) {
+		if (offset >= (nor->mtd->size / 2)) {
+			offset = offset - (nor->mtd->size / 2);
+			nor->spi->master->flags |= SPI_MASTER_U_PAGE;
+		} else
+			nor->spi->master->flags &= ~SPI_MASTER_U_PAGE;
+	}
+
+	/* Wait until finished previous command */
+	ret = spi_nor_wait_till_ready(nor);
+	if (ret)
+		goto err;
+
+	status = read_sr(nor);
+
+	lock_bits = min_protected_area_including_offset(nor, offset);
+
+	/* Only modify protection if it will not unlock other areas */
+	if (lock_bits > bp_bits_from_sr(nor, status))
+		ret = write_sr_modify_protection(nor, status, lock_bits);
+	else
+		dev_err(nor->dev, "trying to unlock already locked area\n");
+
+err:
+	spi_nor_unlock_and_unprep(nor, SPI_NOR_OPS_LOCK);
 	return ret;
 }
 
 static int spi_nor_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 {
 	struct spi_nor *nor = mtd_to_spi_nor(mtd);
-	int ret;
+	uint32_t offset = ofs;
+	uint8_t status;
+	uint8_t lock_bits;
+	int ret = 0;
 
 	ret = spi_nor_lock_and_prep(nor, SPI_NOR_OPS_UNLOCK);
 	if (ret)
 		return ret;
 
-	ret = nor->flash_unlock(nor, ofs, len);
+	if (nor->isparallel == 1)
+		offset /= 2;
 
-	spi_nor_unlock_and_unprep(nor, SPI_NOR_OPS_LOCK);
+	if (nor->isstacked == 1) {
+		if (offset >= (nor->mtd->size / 2)) {
+			offset = offset - (nor->mtd->size / 2);
+			nor->spi->master->flags |= SPI_MASTER_U_PAGE;
+		} else
+			nor->spi->master->flags &= ~SPI_MASTER_U_PAGE;
+	}
+
+	/* Wait until finished previous command */
+	ret = spi_nor_wait_till_ready(nor);
+	if (ret)
+		goto err;
+
+	status = read_sr(nor);
+
+	lock_bits = min_protected_area_including_offset(nor, offset+len) - 1;
+
+	/* Only modify protection if it will not lock other areas */
+	if (lock_bits < bp_bits_from_sr(nor, status))
+		ret = write_sr_modify_protection(nor, status, lock_bits);
+	else
+		dev_err(nor->dev, "trying to lock already unlocked area\n");
+
+err:
+	spi_nor_unlock_and_unprep(nor, SPI_NOR_OPS_UNLOCK);
+	return ret;
+}
+
+static int spi_nor_is_locked(struct mtd_info *mtd, loff_t ofs, uint64_t len)
+{
+	struct spi_nor *nor = mtd_to_spi_nor(mtd);
+	uint32_t offset = ofs;
+	uint32_t protected_area_start;
+	uint8_t status;
+	int ret;
+
+	ret = spi_nor_lock_and_prep(nor, SPI_NOR_OPS_UNLOCK);
+	if (ret)
+		return ret;
+	/* Wait until finished previous command */
+	ret = spi_nor_wait_till_ready(nor);
+	if (ret)
+		goto err;
+	status = read_sr(nor);
+
+	protected_area_start = get_protected_area_start(nor,
+						bp_bits_from_sr(nor, status));
+	if (offset >= protected_area_start)
+		ret = MTD_IS_LOCKED;
+	else if (offset+len < protected_area_start)
+		ret = MTD_IS_UNLOCKED;
+	else
+		ret = MTD_IS_PARTIALLY_LOCKED;
+
+err:
+	spi_nor_unlock_and_unprep(nor, SPI_NOR_OPS_UNLOCK);
 	return ret;
 }
 
@@ -715,12 +834,14 @@ static const struct spi_device_id spi_nor_ids[] = {
 	/* Micron */
 	{ "n25q032",	 INFO(0x20ba16, 0, 64 * 1024,   64, SPI_NOR_QUAD_READ) },
 	{ "n25q064",     INFO(0x20ba17, 0, 64 * 1024,  128, SPI_NOR_QUAD_READ) },
-	{ "n25q128a11",  INFO(0x20bb18, 0, 64 * 1024,  256, SPI_NOR_QUAD_READ) },
-	{ "n25q128a13",  INFO(0x20ba18, 0, 64 * 1024,  256, SPI_NOR_QUAD_READ) },
-	{ "n25q256a",    INFO(0x20ba19, 0, 64 * 1024,  512, SECT_4K | SPI_NOR_QUAD_READ) },
-	{ "n25q512a",    INFO(0x20bb20, 0, 64 * 1024, 1024, SECT_4K | USE_FSR | SPI_NOR_QUAD_READ) },
-	{ "n25q512ax3",  INFO(0x20ba20, 0, 64 * 1024, 1024, SECT_4K | USE_FSR | SPI_NOR_QUAD_READ) },
-	{ "n25q00",      INFO(0x20ba21, 0, 64 * 1024, 2048, SECT_4K | USE_FSR | SPI_NOR_QUAD_READ) },
+	{ "n25q128a11",  INFO(0x20bb18, 0, 64 * 1024,  256, SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | SPI_NOR_FLASH_LOCK) },
+	{ "n25q128a13",  INFO(0x20ba18, 0, 64 * 1024,  256, SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | SPI_NOR_FLASH_LOCK) },
+	{ "n25q256a",    INFO(0x20bb19, 0, 64 * 1024,  512, SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | USE_FSR | SPI_NOR_FLASH_LOCK) },
+	{ "n25q256a13",  INFO(0x20ba19, 0, 64 * 1024,  512, SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | USE_FSR | SPI_NOR_FLASH_LOCK) },
+	{ "n25q512a",    INFO(0x20bb20, 0, 64 * 1024, 1024, SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | USE_FSR | SPI_NOR_FLASH_LOCK) },
+	{ "n25q512a13",  INFO(0x20ba20, 0, 64 * 1024, 1024, SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | USE_FSR | SPI_NOR_FLASH_LOCK) },
+	{ "n25q512ax3",  INFO(0x20ba20, 0, 64 * 1024, 1024, USE_FSR | SPI_NOR_FLASH_LOCK) },
+	{ "n25q00",      INFO(0x20ba21, 0, 64 * 1024, 2048, SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | USE_FSR | SPI_NOR_FLASH_LOCK) },
 
 	/* PMC */
 	{ "pm25lv512",   INFO(0,        0, 32 * 1024,    2, SECT_4K_PMC) },
@@ -732,15 +853,15 @@ static const struct spi_device_id spi_nor_ids[] = {
 	 */
 	{ "s25sl032p",  INFO(0x010215, 0x4d00,  64 * 1024,  64, SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
 	{ "s25sl064p",  INFO(0x010216, 0x4d00,  64 * 1024, 128, 0) },
-	{ "s25fl256s0", INFO(0x010219, 0x4d00, 256 * 1024, 128, 0) },
+	{ "s25fl256s0", INFO(0x010219, 0x4d00, 256 * 1024, 128, SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | SPI_NOR_FLASH_LOCK) },
 	{ "s25fl256s1", INFO(0x010219, 0x4d01,  64 * 1024, 512, SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
 	{ "s25fl512s",  INFO(0x010220, 0x4d00, 256 * 1024, 256, SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
 	{ "s70fl01gs",  INFO(0x010221, 0x4d00, 256 * 1024, 256, 0) },
-	{ "s25sl12800", INFO(0x012018, 0x0300, 256 * 1024,  64, 0) },
-	{ "s25sl12801", INFO(0x012018, 0x0301,  64 * 1024, 256, 0) },
+	{ "s25sl12800", INFO(0x012018, 0x0300, 256 * 1024,  64, SPI_NOR_FLASH_LOCK) },
+	{ "s25sl12801", INFO(0x012018, 0x0301,  64 * 1024, 256, SPI_NOR_FLASH_LOCK) },
 	{ "s25fl128s",	INFO6(0x012018, 0x4d0180, 64 * 1024, 256, SPI_NOR_QUAD_READ) },
-	{ "s25fl129p0", INFO(0x012018, 0x4d00, 256 * 1024,  64, 0) },
-	{ "s25fl129p1", INFO(0x012018, 0x4d01,  64 * 1024, 256, 0) },
+	{ "s25fl129p0", INFO(0x012018, 0x4d00, 256 * 1024,  64, SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | SPI_NOR_FLASH_LOCK) },
+	{ "s25fl129p1", INFO(0x012018, 0x4d01,  64 * 1024, 256, SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | SPI_NOR_FLASH_LOCK) },
 	{ "s25sl004a",  INFO(0x010212,      0,  64 * 1024,   8, 0) },
 	{ "s25sl008a",  INFO(0x010213,      0,  64 * 1024,  16, 0) },
 	{ "s25sl016a",  INFO(0x010214,      0,  64 * 1024,  32, 0) },
@@ -1370,10 +1491,13 @@ int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 #endif
 	}
 
+	nor->n_sectors = info->n_sectors;
+	nor->sector_size = info->sector_size;
 	/* nor protection support for STmicro chips */
-	if (JEDEC_MFR(info) == CFI_MFR_ST) {
-		nor->flash_lock = stm_lock;
-		nor->flash_unlock = stm_unlock;
+	if (info->flags & SPI_NOR_FLASH_LOCK) {
+		mtd->_lock = spi_nor_lock;
+		mtd->_unlock = spi_nor_unlock;
+		mtd->_is_locked = spi_nor_is_locked;
 	}
 
 	if (nor->flash_lock && nor->flash_unlock) {
