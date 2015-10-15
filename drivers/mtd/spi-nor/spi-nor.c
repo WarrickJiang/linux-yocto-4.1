@@ -1013,7 +1013,10 @@ static int spi_nor_read_ext(struct mtd_info *mtd, loff_t from, size_t len,
 	ret = spi_nor_lock_and_prep(nor, SPI_NOR_OPS_READ);
 	if (ret)
 		return ret;
-
+	if (nor->addr_width == 4) {
+		ret = nor->read(nor, from, len, retlen, buf);
+		goto read_err;
+	}
 	while (len) {
 		bank = addr / (OFFSET_16_MB << nor->shift);
 		rem_bank_len = ((OFFSET_16_MB << nor->shift) * (bank + 1)) -
@@ -1047,8 +1050,9 @@ static int spi_nor_read_ext(struct mtd_info *mtd, loff_t from, size_t len,
 
 	*retlen = read_count;
 
+read_err:
 	spi_nor_unlock_and_unprep(nor, SPI_NOR_OPS_READ);
-	return 0;
+	return ret;
 }
 
 static int sst_write(struct mtd_info *mtd, loff_t to, size_t len,
