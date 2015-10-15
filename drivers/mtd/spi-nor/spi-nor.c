@@ -72,15 +72,24 @@ static const struct spi_device_id *spi_nor_match_id(const char *name);
 static int read_sr(struct spi_nor *nor)
 {
 	int ret;
-	u8 val;
+	u8 val[2];
 
-	ret = nor->read_reg(nor, SPINOR_OP_RDSR, &val, 1);
-	if (ret < 0) {
-		pr_err("error %d reading SR\n", (int) ret);
-		return ret;
+	if (nor->isparallel) {
+		ret = nor->read_reg(nor, SPINOR_OP_RDSR, &val[0], 2);
+		if (ret < 0) {
+			pr_err("error %d reading SR\n", (int) ret);
+			return ret;
+		}
+		val[0] |= val[1];
+	} else {
+		ret = nor->read_reg(nor, SPINOR_OP_RDSR, &val[0], 1);
+		if (ret < 0) {
+			pr_err("error %d reading SR\n", (int) ret);
+			return ret;
+		}
 	}
 
-	return val;
+	return val[0];
 }
 
 /*
@@ -91,15 +100,24 @@ static int read_sr(struct spi_nor *nor)
 static int read_fsr(struct spi_nor *nor)
 {
 	int ret;
-	u8 val;
+	u8 val[2];
 
-	ret = nor->read_reg(nor, SPINOR_OP_RDFSR, &val, 1);
-	if (ret < 0) {
-		pr_err("error %d reading FSR\n", ret);
-		return ret;
+	if (nor->isparallel) {
+		ret = nor->read_reg(nor, SPINOR_OP_RDFSR, &val[0], 2);
+		if (ret < 0) {
+			pr_err("error %d reading FSR\n", ret);
+			return ret;
+		}
+		val[0] &= val[1];
+	} else {
+		ret = nor->read_reg(nor, SPINOR_OP_RDFSR, &val[0], 1);
+		if (ret < 0) {
+			pr_err("error %d reading FSR\n", ret);
+			return ret;
+		}
 	}
 
-	return val;
+	return val[0];
 }
 
 /*
@@ -428,6 +446,8 @@ static int spi_nor_erase(struct mtd_info *mtd, struct erase_info *instr)
 	if (ret)
 		return ret;
 
+	if (nor->isparallel)
+		nor->spi->master->flags |= SPI_DATA_STRIPE;
 	/* whole-chip erase? */
 	if (len == mtd->size) {
 		write_enable(nor);
@@ -501,11 +521,15 @@ static int spi_nor_erase(struct mtd_info *mtd, struct erase_info *instr)
 	instr->state = MTD_ERASE_DONE;
 	mtd_erase_callback(instr);
 
+	if (nor->isparallel)
+		nor->spi->master->flags &= ~SPI_DATA_STRIPE;
 	return ret;
 
 erase_err:
 	spi_nor_unlock_and_unprep(nor, SPI_NOR_OPS_ERASE);
 	instr->state = MTD_ERASE_FAILED;
+	if (nor->isparallel)
+		nor->spi->master->flags &= ~SPI_DATA_STRIPE;
 	return ret;
 }
 
@@ -975,7 +999,9 @@ static const struct spi_device_id *spi_nor_read_id(struct spi_nor *nor)
 	int			tmp;
 	u8			id[SPI_NOR_MAX_ID_LEN];
 	struct flash_info	*info;
+	nor->spi->master->flags &= ~SPI_BOTH_FLASH;
 
+	/* If more than one flash are present,need to read id of second flash */
 	tmp = nor->read_reg(nor, SPINOR_OP_RDID, id, SPI_NOR_MAX_ID_LEN);
 	if (tmp < 0) {
 		dev_dbg(nor->dev, " error %d reading JEDEC ID\n", tmp);
@@ -1493,8 +1519,10 @@ int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 		u32 is_dual;
 
 		np_spi = of_get_next_parent(np);
-		if (of_property_match_string(np_spi, "compatible",
-		    "xlnx,zynq-qspi-1.0") >= 0) {
+		if ((of_property_match_string(np_spi, "compatible",
+		    "xlnx,zynq-qspi-1.0") >= 0) ||
+			(of_property_match_string(np_spi, "compatible",
+					"xlnx,zynqmp-qspi-1.0") >= 0)) {
 			if (of_property_read_u32(np_spi, "is-dual",
 						 &is_dual) < 0) {
 				/* Default to single if prop not defined */
@@ -1510,6 +1538,8 @@ int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 					mtd->size <<= nor->shift;
 					nor->isparallel = 1;
 					nor->isstacked = 0;
+					nor->spi->master->flags |=
+							SPI_BOTH_FLASH;
 				} else {
 #ifdef CONFIG_SPI_ZYNQ_QSPI_DUAL_STACKED
 					/* dual stacked */
