@@ -23,9 +23,6 @@
 /* Name of this driver */
 #define DRIVER_NAME			"zynq-qspi"
 
-#define SPI_MASTER_U_PAGE	BIT(3)		/* select upper flash */
-#define SPI_MASTER_QUAD_MODE	BIT(4)		/* support quad mode */
-
 /* Register offset definitions */
 #define ZYNQ_QSPI_CONFIG_OFFSET		0x00 /* Configuration  Register, RW */
 #define ZYNQ_QSPI_STATUS_OFFSET		0x04 /* Interrupt Status Register, RO */
