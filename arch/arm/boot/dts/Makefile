@@ -619,6 +619,7 @@ dtb-$(CONFIG_ARCH_VT8500) += \
 dtb-$(CONFIG_ARCH_ZYNQ) += \
 	zynq-parallella.dtb \
 	zynq-zc702.dtb \
+	zynq-zc702-drm-v4l2.dtb \
 	zynq-zc706.dtb \
 	zynq-zed.dtb \
 	zynq-zybo.dtb
