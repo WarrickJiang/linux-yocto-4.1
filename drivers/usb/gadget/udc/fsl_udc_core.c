@@ -198,7 +198,8 @@ __acquires(ep->udc->lock)
 
 	spin_unlock(&ep->udc->lock);
 
-	usb_gadget_giveback_request(&ep->ep, &req->req);
+	if (req->req.complete)
+		usb_gadget_giveback_request(&ep->ep, &req->req);
 
 	spin_lock(&ep->udc->lock);
 	ep->stopped = stopped;
