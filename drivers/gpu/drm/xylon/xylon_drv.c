@@ -243,6 +243,7 @@ static struct drm_driver xylon_drm_driver = {
 	.preclose = xylon_drm_preclose,
 	.postclose = xylon_drm_postclose,
 	.lastclose = xylon_drm_lastclose,
+	.set_busid = drm_platform_set_busid,
 
 	.get_vblank_counter = drm_vblank_count,
 	.enable_vblank = xylon_drm_vblank_enable,
