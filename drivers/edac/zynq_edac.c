@@ -16,6 +16,7 @@
  */
 
 #include <linux/edac.h>
+#include <linux/of.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
@@ -504,6 +505,15 @@ static int zynq_edac_mc_probe(struct platform_device *pdev)
 	int rc;
 	struct resource *res;
 	void __iomem *baseaddr;
+	struct device_node *np = pdev->dev.of_node;
+	u32 *edac_enable;
+
+	if (!np || !of_device_is_available(np))
+		return -ENODEV;
+
+	edac_enable = (u32 *)of_get_property(np, "xlnx,has-ecc", NULL);
+        if (!edac_enable || !(*edac_enable))/* property has-ecc disenabled or no exist */
+		return -ENODEV;
 
 	/* Get the data from the platform device */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
