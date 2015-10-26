@@ -235,6 +235,7 @@ static irqreturn_t cdns_i2c_isr(int irq, void *ptr)
 		/* Read data if receive data valid is set */
 		while (cdns_i2c_readreg(CDNS_I2C_SR_OFFSET) &
 		       CDNS_I2C_SR_RXDV) {
+			char fifo_byte;
 			/*
 			 * Clear hold bit that was set for FIFO control if
 			 * RX data left is less than FIFO depth, unless
@@ -244,10 +245,16 @@ static irqreturn_t cdns_i2c_isr(int irq, void *ptr)
 			    !id->bus_hold_flag)
 				cdns_i2c_clear_bus_hold(id);
 
-			*(id->p_recv_buf)++ =
-				cdns_i2c_readreg(CDNS_I2C_DATA_OFFSET);
-			id->recv_count--;
-			id->curr_recv_count--;
+			fifo_byte = cdns_i2c_readreg(CDNS_I2C_DATA_OFFSET);
+			/*
+			 * If the number of bytes still expected to receive has
+			 * already been zero, we should quit from here.
+			 */
+			if (id->recv_count) {
+				*(id->p_recv_buf)++ = fifo_byte;
+				id->recv_count--;
+				id->curr_recv_count--;
+			}
 
 			if (cdns_is_holdquirk(id, hold_quirk))
 				break;
