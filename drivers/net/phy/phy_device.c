@@ -181,7 +181,16 @@ struct phy_device *phy_device_create(struct mii_bus *bus, int addr, int phy_id,
 	dev->irq = bus->irq != NULL ? bus->irq[addr] : PHY_POLL;
 	dev_set_name(&dev->dev, PHY_ID_FMT, bus->id, addr);
 
-	dev->state = PHY_DOWN;
+	/* MJ: For LS1 IOT fixed link workaround check PHY address and hard code link as required */
+	if (addr != 2) {
+		dev->state = PHY_DOWN;
+	} else {
+		dev->state = PHY_UP;
+		dev->speed = SPEED_1000;
+		dev->duplex = DUPLEX_FULL;
+		dev->autoneg = AUTONEG_DISABLE;
+		dev->interface = PHY_INTERFACE_MODE_RGMII;
+	}
 
 	mutex_init(&dev->lock);
 	INIT_DELAYED_WORK(&dev->state_queue, phy_state_machine);
@@ -341,9 +350,12 @@ struct phy_device *get_phy_device(struct mii_bus *bus, int addr, bool is_c45)
 	if (r)
 		return ERR_PTR(r);
 
-	/* If the phy_id is mostly Fs, there is no device there */
-	if ((phy_id & 0x1fffffff) == 0x1fffffff)
-		return NULL;
+	/* MJ: For LS1 IOT fixed link check PHY addr and do not return NULL when no device */
+	if (addr != 2) {
+		/* If the phy_id is mostly Fs, there is no device there */
+		if ((phy_id & 0x1fffffff) == 0x1fffffff)
+			return NULL;
+	}
 
 	return phy_device_create(bus, addr, phy_id, is_c45, &c45_ids);
 }
@@ -549,10 +561,13 @@ int phy_init_hw(struct phy_device *phydev)
 	if (!phydev->drv || !phydev->drv->config_init)
 		return 0;
 
-	if (phydev->drv->soft_reset)
-		ret = phydev->drv->soft_reset(phydev);
-	else
-		ret = genphy_soft_reset(phydev);
+	/* MJ: For LS1 IOT fixed link workaround reset phy*/
+	if (phydev->addr != 2) {
+		if (phydev->drv->soft_reset)
+			ret = phydev->drv->soft_reset(phydev);
+		else
+			ret = genphy_soft_reset(phydev);
+	}
 
 	if (ret < 0)
 		return ret;

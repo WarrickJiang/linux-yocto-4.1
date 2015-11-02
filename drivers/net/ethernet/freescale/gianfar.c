@@ -1985,7 +1985,10 @@ static int init_phy(struct net_device *dev)
 							 interface);
 	if (!priv->phydev) {
 		dev_err(&dev->dev, "could not attach to PHY\n");
-		return -ENODEV;
+		printk("LS1 IOT: Fixed link to L2 switch\n");
+		/* MJ: fixed link workaround for LS1 IOT */
+		priv->phydev = NULL;
+		return 0;
 	}
 
 	if (interface == PHY_INTERFACE_MODE_SGMII)
