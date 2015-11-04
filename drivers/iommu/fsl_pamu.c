@@ -1467,7 +1467,9 @@ static void iommu_resume(void)
 {
 	int i;
 	u32 pamubypenr, pamu_counter;
+	struct ome *omt;
 
+	omt = (void *)spaact + (PAGE_SIZE << get_order(SPAACT_SIZE));
 	restore_dcfg_liodns();
 	pamubypenr = in_be32(&guts_regs->pamubypenr);
 	for (i = 0, pamu_counter = 0x80000000; i < pamu_info_data.count;
