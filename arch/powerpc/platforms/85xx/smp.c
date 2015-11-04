@@ -463,13 +463,18 @@ static void wake_hw_thread(void *info)
 	void fsl_secondary_thread_init(void);
 	unsigned long imsr1, inia1;
 	int nr = *(const int *)info;
+	int ret;
 
 	imsr1 = MSR_KERNEL;
 	inia1 = *(unsigned long *)fsl_secondary_thread_init;
 
-	mttmr(TMRN_IMSR1, imsr1);
-	mttmr(TMRN_INIA1, inia1);
-	mtspr(SPRN_TENS, TEN_THREAD(1));
+	if (system_state == SYSTEM_BOOTING) {
+		mttmr(TMRN_IMSR1, imsr1);
+		mttmr(TMRN_INIA1, inia1);
+		mtspr(SPRN_TENS, TEN_THREAD(1));
+	} else {
+		fsl_enable_threads(&ret);
+	}
 
 	smp_generic_kick_cpu(nr);
 }
