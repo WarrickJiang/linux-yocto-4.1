@@ -61,7 +61,7 @@ static inline u32 get_phy_cpu_mask(void)
 	u32 mask;
 	int cpu;
 
-	if (smt_capable()) {
+	if (cpu_has_feature(CPU_FTR_SMT)) {
 		/* two threads in one core share one time base */
 		mask = 1 << cpu_core_index_of_thread(cur_booting_core);
 		for_each_online_cpu(cpu)
@@ -110,7 +110,7 @@ static void __cpuinit mpc85xx_give_timebase(void)
 	 * If the booting thread is not the first thread of the core,
 	 * skip time base sync.
 	 */
-	if (smt_capable() &&
+	if (cpu_has_feature(CPU_FTR_SMT) &&
 		cur_booting_core != cpu_first_thread_sibling(cur_booting_core))
 		return;
 
@@ -167,7 +167,7 @@ static void __cpuinit mpc85xx_take_timebase(void)
 		return;
 #endif
 
-	if (smt_capable() &&
+	if (cpu_has_feature(CPU_FTR_SMT) &&
 		cur_booting_core != cpu_first_thread_sibling(cur_booting_core))
 		return;
 
@@ -190,7 +190,7 @@ static inline bool is_core_down(unsigned int thread)
 {
 	cpumask_t thd_mask;
 
-	if (!smt_capable())
+	if (!cpu_has_feature(CPU_FTR_SMT))
 		return true;
 
 	cpumask_shift_left(&thd_mask, &threads_core_mask,
