@@ -1608,7 +1608,7 @@ _GLOBAL(book3e_secondary_thread_init)
 	mflr	r28
 	b	3b
 
-init_core_book3e:
+_GLOBAL(init_core_book3e)
 	/* Establish the interrupt vector base */
 #ifdef CONFIG_RELOCATABLE
 /* In relocatable case the value of the constant expression 'expr' is only
