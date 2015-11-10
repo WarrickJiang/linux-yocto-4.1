@@ -514,7 +514,7 @@ static int spi_nor_erase(struct mtd_info *mtd, struct erase_info *instr)
 
 			write_enable(nor);
 
-			if (nor->erase(nor, addr)) {
+			if (nor->erase(nor, offset)) {
 				ret = -EIO;
 				goto erase_err;
 			}
@@ -909,7 +909,7 @@ static const struct spi_device_id spi_nor_ids[] = {
 	{ "s25fl256s0", INFO(0x010219, 0x4d00, 256 * 1024, 128, SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | SPI_NOR_FLASH_LOCK) },
 	{ "s25fl256s1", INFO(0x010219, 0x4d01,  64 * 1024, 512, SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
 	{ "s25fl512s",  INFO(0x010220, 0x4d00, 256 * 1024, 256, SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
-	{ "s70fl01gs",  INFO(0x010221, 0x4d00, 256 * 1024, 256, 0) },
+	{ "s70fl01gs",  INFO(0x010221, 0x4d00, 256 * 1024, 256, SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
 	{ "s25sl12800", INFO(0x012018, 0x0300, 256 * 1024,  64, SPI_NOR_FLASH_LOCK) },
 	{ "s25sl12801", INFO(0x012018, 0x0301,  64 * 1024, 256, SPI_NOR_FLASH_LOCK) },
 	{ "s25fl128s",	INFO6(0x012018, 0x4d0180, 64 * 1024, 256, SPI_NOR_QUAD_READ) },
@@ -985,11 +985,10 @@ static const struct spi_device_id spi_nor_ids[] = {
 	{ "w25q32dw", INFO(0xef6016, 0, 64 * 1024,  64, SECT_4K) },
 	{ "w25x64", INFO(0xef3017, 0, 64 * 1024, 128, SECT_4K) },
 	{ "w25q64", INFO(0xef4017, 0, 64 * 1024, 128, SECT_4K) },
-	{ "w25q64dw", INFO(0xef6017, 0, 64 * 1024, 128, SECT_4K) },
 	{ "w25q80", INFO(0xef5014, 0, 64 * 1024,  16, SECT_4K) },
 	{ "w25q80bl", INFO(0xef4014, 0, 64 * 1024,  16, SECT_4K) },
-	{ "w25q128", INFO(0xef4018, 0, 64 * 1024, 256, SECT_4K) },
-	{ "w25q256", INFO(0xef4019, 0, 64 * 1024, 512, SECT_4K) },
+	{ "w25q128", INFO(0xef4018, 0, 64 * 1024, 256, SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
+	{ "w25q256", INFO(0xef4019, 0, 64 * 1024, 512, SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
 
 	/* Catalyst / On Semiconductor -- non-JEDEC */
 	{ "cat25c11", CAT25_INFO(  16, 8, 16, 1, SPI_NOR_NO_ERASE | SPI_NOR_NO_FR) },
@@ -1194,7 +1193,7 @@ time_out:
  * it is within the physical boundaries.
  */
 static int spi_nor_write(struct mtd_info *mtd, loff_t to, size_t len,
-	size_t *retlen, const u_char *buf)
+			 size_t *retlen, const u_char *buf)
 {
 	struct spi_nor *nor = mtd_to_spi_nor(mtd);
 	u32 page_offset, page_size, i;
@@ -1433,17 +1432,13 @@ static int set_quad_mode(struct spi_nor *nor, struct flash_info *info)
 			return -EINVAL;
 		}
 		return status;
-	/*
-	 * Revisit
-	 * Quad enable needs to be done explicitly only for spansion and
-	 * winbond devices. This is a non-volatile configuration that
-	 * only needs to be done once.
-	 * Also, this wont work on Micron - so this can tbe a default.
-	 * In addition, the CFI_ entries for Micron and Spansion are also
-	 * shared by other devices.
-	 * Especially with parallel and stacked configurations,
-	 * a direct call to spansion_quad_enable is not guaranteed to work.
-	 */
+	case CFI_MFR_AMD:
+		status = spansion_quad_enable(nor);
+		if (status) {
+			dev_err(nor->dev, "Spansion quad-read not enabled\n");
+			return -EINVAL;
+		}
+		return status;
 	default:
 		return 0;
 	}
