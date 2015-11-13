@@ -59,7 +59,7 @@ sg_to_qm_sg(struct scatterlist *sg, int sg_count,
 		dma_to_qm_sg_one(qm_sg_ptr, sg_dma_address(sg),
 				 sg_dma_len(sg), offset);
 		qm_sg_ptr++;
-		sg = scatterwalk_sg_next(sg);
+		sg = sg_next(sg);
 		sg_count--;
 	}
 	return qm_sg_ptr - 1;
