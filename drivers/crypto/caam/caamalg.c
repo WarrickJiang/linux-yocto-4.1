@@ -1713,7 +1713,7 @@ static int tls_set_sh_desc(struct crypto_aead *aead)
 	/* skip key loading if they are loaded due to sharing */
 	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
 				   JUMP_COND_SHRD);
-	append_key_aead(desc, ctx, keys_fit_inline);
+	append_key_aead(desc, ctx, keys_fit_inline, 0);
 	set_jump_tgt_here(desc, key_jump_cmd);
 
 	/* class 2 operation */
