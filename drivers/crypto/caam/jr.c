@@ -592,10 +592,10 @@ static int caam_jr_init(struct device *dev)
 
 out_free_outring:
 	dma_free_coherent(dev, sizeof(struct jr_outentry) * JOBR_DEPTH,
-			  jrp->outring, outbusaddr);
+			  jrp->outring, jrp->outbusaddr);
 out_free_inpring:
 	dma_free_coherent(dev, sizeof(dma_addr_t) * JOBR_DEPTH,
-			  jrp->inpring, inpbusaddr);
+			  jrp->inpring, jrp->inpbusaddr);
 	dev_err(dev, "can't allocate job rings for %d\n", jrp->ridx);
 out_free_irq:
 	free_irq(jrp->irq, dev);
