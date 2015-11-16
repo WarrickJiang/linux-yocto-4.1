@@ -4480,7 +4480,6 @@ t_Error LnxwrpFmPortIOCTL(t_LnxWrpFmPortDev *p_LnxWrpFmPortDev, unsigned int cmd
             t_LnxWrpFmDev *p_LnxWrpFmDev =
                     (t_LnxWrpFmDev *)p_LnxWrpFmPortDev->h_LnxWrpFmDev;
             ioc_fm_port_bmi_stats_t param;
-            int port_id = p_LnxWrpFmPortDev->id;
 
             if (!p_LnxWrpFmDev)
                 RETURN_ERROR(MINOR, E_NOT_AVAILABLE, ("Port not initialized or other error!"));
