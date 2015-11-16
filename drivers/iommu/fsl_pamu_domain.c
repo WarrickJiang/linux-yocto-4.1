@@ -1058,8 +1058,7 @@ static struct iommu_group *get_pci_device_group(struct device *dev)
 	struct pci_controller *pci_ctl;
 	bool pci_endpt_partioning;
 	struct iommu_group *group = NULL;
-	struct pci_dev *bridge, *pdev;
-	struct pci_dev *dma_pdev = NULL;
+	struct pci_dev *pdev;
 
 	pdev = to_pci_dev(dev);
 	/* Don't create device groups for virtual PCI bridges */
