@@ -600,7 +600,13 @@ out_free_inpring:
 out_free_irq:
 	free_irq(jrp->irq, dev);
 out_kill_deq:
-	tasklet_kill(&jrp->irqtask);
+	for_each_possible_cpu(i) {
+		napi_disable(per_cpu_ptr(jrp->irqtask, i));
+		netif_napi_del(per_cpu_ptr(jrp->irqtask, i));
+	}
+	free_percpu(jrp->irqtask);
+	free_percpu(jrp->net_dev);
+
 	return error;
 }
 
