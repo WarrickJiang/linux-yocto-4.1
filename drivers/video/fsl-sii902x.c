@@ -282,6 +282,10 @@ static void det_worker(struct work_struct *work)
 	if (!(val & 0x1) && !g_enable_hdmi)
 		goto err;
 
+	/* workaround multiple interrupts when pluging hdmi */
+	if (sii902x->cable_plugin)
+		goto err;
+
 	/* cable connection changes */
 	if (val & SII902X_TPI_INT_PLUG_IN || g_enable_hdmi) {
 		sii902x->cable_plugin = 1;
