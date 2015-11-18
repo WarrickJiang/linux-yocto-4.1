@@ -1775,12 +1775,6 @@ void qman_static_dequeue_del_ex(struct qman_portal *p, u32 pools);
  */
 struct qman_portal *per_cpu_affine_portal(int cpu);
 
-#if defined(CONFIG_KEXEC)
-
-int qman_portal_lock(struct qman_portal *p,unsigned long irqflags);
-int qman_portal_unlock(struct qman_portal *p,unsigned long irqflags) ;
-#endif
-
 /**
  * qman_static_dequeue_get - return the portal's current SDQCR
  *
