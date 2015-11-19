@@ -86,7 +86,7 @@ static int rman_uio_mmap(struct uio_info *info, struct vm_area_struct *vma)
 
 	mem = &info->mem[mi];
 
-	size = min(vma->vm_end - vma->vm_start, mem->size);
+	size = min(vma->vm_end - vma->vm_start, (unsigned long)mem->size);
 	size = max(size, PAGE_SIZE);
 
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
