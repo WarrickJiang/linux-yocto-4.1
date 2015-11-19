@@ -365,7 +365,6 @@ static void qm_reserve_memory(struct qman *qm, enum qm_memory memory)
 	u64 end = 0;
 	u32 exp = 0;
 	u32 size = 0;
-	u32 unknown_hole_size = 0;
 	u32 offset = (memory == qm_memory_fqd) ? REG_FQD_BARE : REG_PFDR_BARE;
 	int ret;
 
