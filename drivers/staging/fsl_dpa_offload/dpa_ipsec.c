@@ -3529,7 +3529,8 @@ remove_fq_pair:
 /* Find unused global DPA IPsec instance holder */
 int find_unused_gbl_dpa_ipsec(void)
 {
-	int i, instance_id = -1;
+	int instance_id = -1;
+	unsigned long i;
 
 	spin_lock(&gbl_dpa_ipsec_lock);
 
