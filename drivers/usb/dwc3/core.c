@@ -1013,6 +1013,10 @@ static int dwc3_probe(struct platform_device *pdev)
 	dwc3_writel(dwc->regs, DWC3_GSBUSCFG1,
 		dwc3_readl(dwc->regs, DWC3_GSBUSCFG1) | 0xf00);
 
+	/* Enable Snooping */
+	dwc3_writel(dwc->regs, DWC3_GSBUSCFG0,
+			dwc3_readl(dwc->regs, DWC3_GSBUSCFG0) | 0x22220000);
+
 	if (IS_ENABLED(CONFIG_USB_DWC3_HOST))
 		dwc->dr_mode = USB_DR_MODE_HOST;
 	else if (IS_ENABLED(CONFIG_USB_DWC3_GADGET))
