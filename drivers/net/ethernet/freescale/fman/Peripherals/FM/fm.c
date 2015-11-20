@@ -61,12 +61,20 @@
 static volatile bool blockingFlag = FALSE;
 
 #ifdef FM_SOFT_REST_IS_NOT_FINISHED_PROPERLY_A007273
+
+static const struct of_device_id A007273_of_match[] = {
+    { .compatible = "fsl,t1024-device-config"},
+    { .compatible = "fsl,t2080-device-config"},
+    { .compatible = "fsl,t4240-device-config"},
+    {},
+};
+
 static struct ccsr_guts __iomem *Fm_GetCcsrGutsReg(void)
 {
 	struct device_node *np;
 	struct ccsr_guts __iomem *guts_regs = NULL;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,t4240-device-config");
+	np = of_find_matching_node_and_match(NULL, A007273_of_match, NULL);
 
 	if (np) {
 		guts_regs = of_iomap(np, 0);
