@@ -119,7 +119,10 @@
 };
 
 &gem0 {
+	compatible = "xlnx,ps7-ethernet-1.00.a";
 	status = "okay";
+	clocks = <&clkc 30>, <&clkc 13>;
+	clock-names =  "aper_clk", "ref_clk";
 	phy-mode = "rgmii-id";
 	phy-handle = <&ethernet_phy>;
 	pinctrl-names = "default";
@@ -422,4 +425,9 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usb0_default>;
 	xlnx,phy-reset-gpio = <&gpio0 7 0>;
+};
+
+&watchdog0 {
+	status = "okay";
+	reset-on-timeout;
 };
