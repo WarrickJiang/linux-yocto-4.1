@@ -111,7 +111,7 @@ static int bt_sock_create(struct net *net, struct socket *sock, int proto,
 {
 	int err;
 
-	if (net != &init_net)
+	if (!net_eq(net, current->nsproxy->net_ns))
 		return -EAFNOSUPPORT;
 
 	if (proto < 0 || proto >= BT_MAX_PROTO)

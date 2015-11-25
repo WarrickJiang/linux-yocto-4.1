@@ -1428,7 +1428,7 @@ int __init hci_sock_init(void)
 		goto error;
 	}
 
-	err = bt_procfs_init(&init_net, "hci", &hci_sk_list, NULL);
+	err = bt_procfs_init(current->nsproxy->net_ns, "hci", &hci_sk_list, NULL);
 	if (err < 0) {
 		BT_ERR("Failed to create HCI proc file");
 		bt_sock_unregister(BTPROTO_HCI);
@@ -1446,7 +1446,7 @@ error:
 
 void hci_sock_cleanup(void)
 {
-	bt_procfs_cleanup(&init_net, "hci");
+	bt_procfs_cleanup(current->nsproxy->net_ns, "hci");
 	bt_sock_unregister(BTPROTO_HCI);
 	proto_unregister(&hci_sk_proto);
 }

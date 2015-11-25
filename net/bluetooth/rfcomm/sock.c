@@ -1073,7 +1073,7 @@ int __init rfcomm_init_sockets(void)
 		goto error;
 	}
 
-	err = bt_procfs_init(&init_net, "rfcomm", &rfcomm_sk_list, NULL);
+	err = bt_procfs_init(current->nsproxy->net_ns, "rfcomm", &rfcomm_sk_list, NULL);
 	if (err < 0) {
 		BT_ERR("Failed to create RFCOMM proc file");
 		bt_sock_unregister(BTPROTO_RFCOMM);
@@ -1098,7 +1098,7 @@ error:
 
 void __exit rfcomm_cleanup_sockets(void)
 {
-	bt_procfs_cleanup(&init_net, "rfcomm");
+	bt_procfs_cleanup(current->nsproxy->net_ns, "rfcomm");
 
 	debugfs_remove(rfcomm_sock_debugfs);
 
