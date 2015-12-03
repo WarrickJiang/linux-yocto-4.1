@@ -108,7 +108,7 @@
 
 &enet2 {
 	tbi-handle = <&tbi1>;
-	phy-handle = <&phy2>;
+	fixed-link = <2 1 1000 0 0>;
 	phy-connection-type = "rgmii";
 	status = "ok";
 };
@@ -187,9 +187,6 @@
 	phy1: ethernet-phy@1 {
 		reg = <0x1>;
 		interrupts = <GIC_SPI 165 IRQ_TYPE_LEVEL_LOW>;
-	};
-	phy2: ethernet-phy@2 {
-		reg = <0x2>;
 	};
 	phy3: ethernet-phy@3 {
 		reg = <0x3>;

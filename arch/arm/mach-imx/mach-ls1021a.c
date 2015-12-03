@@ -53,6 +53,37 @@ static void __init ls1021a_init_time(void)
 	tick_setup_hrtimer_broadcast();
 }
 
+#ifdef CONFIG_FIXED_PHY
+static int __init of_add_fixed_phys(void)
+{
+	int ret;
+	struct device_node *np;
+	u32 *fixed_link;
+	struct fixed_phy_status status = {};
+
+	for_each_node_by_name(np, "ethernet") {
+		fixed_link  = (u32 *)of_get_property(np, "fixed-link", NULL);
+		if (!fixed_link)
+			continue;
+
+		status.link = 1;
+		status.duplex = be32_to_cpu(fixed_link[1]);
+		status.speed = be32_to_cpu(fixed_link[2]);
+		status.pause = be32_to_cpu(fixed_link[3]);
+		status.asym_pause = be32_to_cpu(fixed_link[4]);
+
+		ret = fixed_phy_add(PHY_POLL, be32_to_cpu(fixed_link[0]), &status);
+		if (ret) {
+			of_node_put(np);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+arch_initcall(of_add_fixed_phys);
+#endif /* CONFIG_FIXED_PHY */
+
 static const char *ls1021a_dt_compat[] __initdata = {
 	"fsl,ls1021a",
 	NULL,
