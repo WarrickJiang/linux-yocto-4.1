@@ -777,6 +777,7 @@ struct fb_videomode {
 	u32 sync;
 	u32 vmode;
 	u32 flag;
+	u32 vid;		/*optional*/
 };
 
 struct dmt_videomode {

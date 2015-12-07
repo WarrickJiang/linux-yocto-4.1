@@ -1907,5 +1907,6 @@ int fb_new_modelist(struct fb_info *info)
 
 	return err;
 }
+EXPORT_SYMBOL(fb_new_modelist);
 
 MODULE_LICENSE("GPL");

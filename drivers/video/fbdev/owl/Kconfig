@@ -1,0 +1,16 @@
+menuconfig VIDEO_OWL
+	bool "OWL video support"
+	depends on ARCH_OWL
+        help
+	  Actions OWL Soc video support.
+
+if VIDEO_OWL
+source "drivers/video/fbdev/owl/vce/Kconfig"
+source "drivers/video/fbdev/owl/vde/Kconfig"
+source "drivers/video/fbdev/owl/backlight/Kconfig"
+source "drivers/video/fbdev/owl/dss/Kconfig"
+source "drivers/video/fbdev/owl/displays/Kconfig"
+source "drivers/video/fbdev/owl/fb/Kconfig"
+
+source "drivers/video/fbdev/owl/switch/Kconfig"
+endif
