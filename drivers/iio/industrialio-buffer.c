@@ -156,6 +156,7 @@ unsigned int iio_buffer_poll(struct file *filp,
 	poll_wait(filp, &rb->pollq, wait);
 	if (iio_buffer_ready(indio_dev, rb, rb->watermark, 0))
 		return POLLIN | POLLRDNORM;
+
 	return 0;
 }
 
@@ -863,13 +864,13 @@ out:
 	return ret ? ret : len;
 }
 
-static DEVICE_ATTR(length, S_IRUGO | S_IWUSR, iio_buffer_read_length,
+static DEVICE_ATTR(length, S_IRUGO | S_IWUGO, iio_buffer_read_length,
 		   iio_buffer_write_length);
 static struct device_attribute dev_attr_length_ro = __ATTR(length,
 	S_IRUGO, iio_buffer_read_length, NULL);
-static DEVICE_ATTR(enable, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(enable, S_IRUGO | S_IWUGO,
 		   iio_buffer_show_enable, iio_buffer_store_enable);
-static DEVICE_ATTR(watermark, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(watermark, S_IRUGO | S_IWUGO,
 		   iio_buffer_show_watermark, iio_buffer_store_watermark);
 
 static struct attribute *iio_buffer_attrs[] = {

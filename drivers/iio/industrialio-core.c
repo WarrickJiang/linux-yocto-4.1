@@ -75,6 +75,7 @@ static const char * const iio_chan_type_name_spec[] = {
 	[IIO_ENERGY] = "energy",
 	[IIO_DISTANCE] = "distance",
 	[IIO_VELOCITY] = "velocity",
+	[IIO_QUATERNION] = "quaternion",
 };
 
 static const char * const iio_modifier_names[] = {
@@ -101,6 +102,7 @@ static const char * const iio_modifier_names[] = {
 	[IIO_MOD_WALKING] = "walking",
 	[IIO_MOD_STILL] = "still",
 	[IIO_MOD_ROOT_SUM_SQUARED_X_Y_Z] = "sqrt(x^2+y^2+z^2)",
+	[IIO_MOD_R]  = "r",
 };
 
 /* relies on pairs of these shared then separate */
@@ -689,7 +691,7 @@ int __iio_device_attr_init(struct device_attribute *dev_attr,
 	}
 
 	if (writefunc) {
-		dev_attr->attr.mode |= S_IWUSR;
+		dev_attr->attr.mode |= S_IWUGO;
 		dev_attr->store = writefunc;
 	}
 

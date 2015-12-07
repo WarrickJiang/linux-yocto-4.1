@@ -18,14 +18,29 @@ struct iio_kfifo {
 
 #define iio_to_kfifo(r) container_of(r, struct iio_kfifo, buffer)
 
+/**
+ * __iio_update_buffer() - update common elements of buffers
+ * @buffer:		buffer that is the event source
+ * @bytes_per_datum:	size of individual datum including timestamp
+ * @length:		number of datums in buffer
+ **/
+static inline void __iio_update_buffer(struct iio_buffer *buffer,
+				       int bytes_per_datum, int length)
+{
+	buffer->bytes_per_datum = bytes_per_datum;
+	buffer->length = length;
+}
+
 static inline int __iio_allocate_kfifo(struct iio_kfifo *buf,
 				int bytes_per_datum, int length)
 {
 	if ((length == 0) || (bytes_per_datum == 0))
 		return -EINVAL;
-
-	return __kfifo_alloc((struct __kfifo *)&buf->kf, length,
-			     bytes_per_datum, GFP_KERNEL);
+    
+        __iio_update_buffer(&buf->buffer, bytes_per_datum, length);
+        //return __kfifo_alloc((struct __kfifo *)&buf->kf, length,
+			     //bytes_per_datum, GFP_KERNEL);
+    return kfifo_alloc(&buf->kf, bytes_per_datum*length, GFP_KERNEL);
 }
 
 static int iio_request_update_kfifo(struct iio_buffer *r)
@@ -67,8 +82,8 @@ static int iio_set_bytes_per_datum_kfifo(struct iio_buffer *r, size_t bpd)
 static int iio_set_length_kfifo(struct iio_buffer *r, int length)
 {
 	/* Avoid an invalid state */
-	if (length < 2)
-		length = 2;
+	//if (length < 2)
+		//length = 2;
 	if (r->length != length) {
 		r->length = length;
 		iio_mark_update_needed_kfifo(r);
@@ -81,9 +96,14 @@ static int iio_store_to_kfifo(struct iio_buffer *r,
 {
 	int ret;
 	struct iio_kfifo *kf = iio_to_kfifo(r);
-	ret = kfifo_in(&kf->kf, data, 1);
-	if (ret != 1)
-		return -EBUSY;
+
+	if (kfifo_avail(&kf->kf) >= r->bytes_per_datum) {
+		ret = kfifo_in(&kf->kf, data, r->bytes_per_datum);
+		if (ret != r->bytes_per_datum)
+			return -EBUSY;
+	} else {
+		return -ENOMEM;
+	}
 	return 0;
 }
 
