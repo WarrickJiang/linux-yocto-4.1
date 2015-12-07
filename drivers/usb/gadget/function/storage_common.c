@@ -293,6 +293,24 @@ int fsg_lun_fsync_sub(struct fsg_lun *curlun)
 
 	if (curlun->ro || !filp)
 		return 0;
+#ifdef DEBUG_TIME_OF_VFS_OP
+	if(debug_vfs_op_time) {
+		struct timeval tv_start;
+		struct timeval tv_end;
+		int ret;
+
+		do_gettimeofday(&tv_start);
+
+		ret = vfs_fsync(filp, 1);
+
+		do_gettimeofday(&tv_end);
+		calculate_time_of_vfs_op(&tv_start, &tv_end);
+
+		return ret;
+	}
+	else
+		
+#endif			
 	return vfs_fsync(filp, 1);
 }
 EXPORT_SYMBOL_GPL(fsg_lun_fsync_sub);

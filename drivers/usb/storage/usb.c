@@ -90,6 +90,17 @@ module_param_string(quirks, quirks, sizeof(quirks), S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(quirks, "supplemental list of device IDs and their quirks");
 
 
+#define DEBUG_TIME_OF_SCSI_CMDS 1
+#if DEBUG_TIME_OF_SCSI_CMDS
+static unsigned int total_usec_time_of_scsi_cmds = 0;
+module_param(total_usec_time_of_scsi_cmds, uint, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(total_usec_time_of_scsi_cmds, "total_usec_time_of_scsi_cmds");
+
+static unsigned int debug_cmds_time = 0;
+module_param(debug_cmds_time, uint, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(debug_cmds_time, "debug_cmds_time");
+#endif
+
 /*
  * The entries in this table correspond, line for line,
  * with the entries in usb_storage_usb_ids[], defined in usual-tables.c.
@@ -375,8 +386,30 @@ static int usb_stor_control_thread(void * __us)
 
 		/* we've got a command, let's do it! */
 		else {
+#if DEBUG_TIME_OF_SCSI_CMDS
+			struct timeval tv_start;
+			struct timeval tv_end;
+#endif
+
 			US_DEBUG(usb_stor_show_command(us, us->srb));
+
+#if DEBUG_TIME_OF_SCSI_CMDS
+			if(debug_cmds_time) {
+				do_gettimeofday(&tv_start);
+			}
+#endif
 			us->proto_handler(us->srb, us);
+#if DEBUG_TIME_OF_SCSI_CMDS
+			if(debug_cmds_time) {
+				do_gettimeofday(&tv_end);
+				if(tv_end.tv_sec > tv_start.tv_sec) {
+					total_usec_time_of_scsi_cmds += ((tv_end.tv_sec - tv_start.tv_sec)*1000000 + tv_end.tv_usec - tv_start.tv_usec);
+				}
+				else {
+					total_usec_time_of_scsi_cmds += (tv_end.tv_usec - tv_start.tv_usec);
+				}
+			}
+#endif
 			usb_mark_last_busy(us->pusb_dev);
 		}
 

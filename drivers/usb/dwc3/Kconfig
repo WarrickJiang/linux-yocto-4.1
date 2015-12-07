@@ -96,6 +96,15 @@ config USB_DWC3_ST
 	  inside (i.e. STiH407).
 	  Say 'Y' or 'M' if you have one such device.
 
+config USB_DWC3_ACT
+	tristate "Actions S500 Platforms"
+	depends on ARCH_OWL && OF
+	default USB_DWC3
+	help
+	  Actions S500 SoCs with one DesignWare Core USB3 IP
+	  inside
+	  Say 'Y' or 'M' if you have one such device.
+
 config USB_DWC3_QCOM
 	tristate "Qualcomm Platforms"
 	depends on ARCH_QCOM || COMPILE_TEST

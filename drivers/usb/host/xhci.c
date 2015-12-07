@@ -31,11 +31,21 @@
 
 #include "xhci.h"
 #include "xhci-trace.h"
+#define XHCI_SUPPORT_SUPERSPEED	
+#ifdef XHCI_SUPPORT_SUPERSPEED	
+#include "xhci_ss_retry_mode.c"
+#include "xhci_ss_phy_setting.c"
+#endif
 
 #define DRIVER_AUTHOR "Sarah Sharp"
 #define DRIVER_DESC "'eXtensible' Host Controller (xHC) Driver"
 
 #define	PORT_WAKE_BITS	(PORT_WKOC_E | PORT_WKDISC_E | PORT_WKCONN_E)
+
+struct xhci_hcd *xhci_host;
+extern void dwc3_phy_init(u8 mode, unsigned char port_num);
+extern void disable_bias(void);
+extern void enable_bias(void);
 
 /* Some 0.95 hardware can't handle the chain bit on a Link TRB being cleared */
 static int link_quirk;
@@ -129,6 +139,12 @@ static int xhci_start(struct xhci_hcd *xhci)
 	u32 temp;
 	int ret;
 
+#ifdef XHCI_SUPPORT_SUPERSPEED      
+	struct usb_hcd *hcd = xhci_to_hcd(xhci);
+        
+	ss_lfps_init(hcd->regs) ;
+#endif
+ 
 	temp = readl(&xhci->op_regs->command);
 	temp |= (CMD_RUN);
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init, "// Turn on HC, cmd = 0x%x.",
@@ -149,6 +165,29 @@ static int xhci_start(struct xhci_hcd *xhci)
 		/* clear state flags. Including dying, halted or removing */
 		xhci->xhc_state = 0;
 
+#ifdef XHCI_SUPPORT_SUPERSPEED    
+	printk("\n#xhci_start#\n");
+#ifdef XHCI_SS_SUPPORT_RETRY     
+	int val,retry_cnt = 0;
+	ReRxDetectLoop_notResetXhci:  
+	do{
+		ss_retry_mode(hcd->regs);
+		printk("ss retry %d times\n",retry_cnt++);
+        	msleep(10);
+		if(ss_detect_ltssm_change(hcd->regs)==0)
+		{				
+			if((retry_cnt >10))
+				break;
+			goto ReRxDetectLoop_notResetXhci; 
+		}
+		val = readl(hcd->regs+XHCI_PORT2_STATUS);
+	}
+	while(((val & PORT_CONNECT) ==0)&&(retry_cnt <10) );// try 10 times ,then try hs
+#else
+	ss_retry_mode(hcd->regs);
+#endif
+#endif
+
 	return ret;
 }
 
@@ -164,6 +203,12 @@ int xhci_reset(struct xhci_hcd *xhci)
 	u32 command;
 	u32 state;
 	int ret, i;
+
+	struct usb_hcd *hcd = xhci_to_hcd(xhci);
+    
+#ifndef XHCI_SUPPORT_SUPERSPEED       
+	enable_bias();
+#endif  
 
 	state = readl(&xhci->op_regs->status);
 	if ((state & STS_HALT) == 0) {
@@ -205,6 +250,15 @@ int xhci_reset(struct xhci_hcd *xhci)
 		xhci->bus_state[i].suspended_ports = 0;
 		xhci->bus_state[i].resuming_ports = 0;
 	}
+
+	dwc3_phy_init(1,0);
+    
+#ifdef XHCI_SUPPORT_SUPERSPEED   
+	ss_phy_init(hcd->regs,1);
+	ss_retry_mode_init(hcd->regs);
+#else
+	disable_bias();
+#endif 
 
 	return ret;
 }
@@ -578,6 +632,8 @@ static int xhci_run_finished(struct xhci_hcd *xhci)
 	if (xhci->quirks & XHCI_NEC_HOST)
 		xhci_ring_cmd_db(xhci);
 
+	xhci_host = xhci;
+
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 			"Finished xhci_run for USB3 roothub");
 	return 0;
@@ -906,6 +962,15 @@ static void xhci_disable_port_wake_on_bits(struct xhci_hcd *xhci)
  * This is called when the machine transition into S3/S4 mode.
  *
  */
+int xhci_suspend_host(void)
+{
+	struct usb_hcd *hcd = xhci_to_hcd(xhci_host);
+
+	xhci_suspend(xhci_host, device_may_wakeup(hcd->self.controller));
+
+	return 0;	
+}
+
 int xhci_suspend(struct xhci_hcd *xhci, bool do_wakeup)
 {
 	int			rc = 0;
@@ -991,6 +1056,12 @@ EXPORT_SYMBOL_GPL(xhci_suspend);
  * This is called when the machine transition from S3/S4 mode.
  *
  */
+int xhci_resume_host(void)
+{
+	xhci_resume(xhci_host, 0);
+	return 0;
+}
+
 int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 {
 	u32			command, temp = 0, status;

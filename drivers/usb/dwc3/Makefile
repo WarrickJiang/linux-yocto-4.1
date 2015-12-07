@@ -35,6 +35,7 @@ endif
 # and allyesconfig builds.
 ##
 
+obj-$(CONFIG_USB_DWC3_ACT)		+= dwc3-actions.o
 obj-$(CONFIG_USB_DWC3_OMAP)		+= dwc3-omap.o
 obj-$(CONFIG_USB_DWC3_EXYNOS)		+= dwc3-exynos.o
 obj-$(CONFIG_USB_DWC3_PCI)		+= dwc3-pci.o

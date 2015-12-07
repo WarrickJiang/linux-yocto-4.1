@@ -713,7 +713,7 @@ static int do_read(struct fsg_common *common)
 		}
 
 		/* Perform the read */
-		file_offset_tmp = file_offset;
+		file_offset_tmp = file_offset;	
 		nread = vfs_read(curlun->filp,
 				 (char __user *)bh->buf,
 				 amount, &file_offset_tmp);
@@ -1082,7 +1082,6 @@ static int do_verify(struct fsg_common *common)
 	}
 	return 0;
 }
-
 
 /*-------------------------------------------------------------------------*/
 
@@ -1675,6 +1674,18 @@ static int send_status(struct fsg_common *common)
 		return -EIO;
 
 	common->next_buffhd_to_fill = bh->next;
+
+#ifdef SUPPORT_UDISK_UPGRADE
+  if(restart_flag == 1) {
+    set_upgrade_flags_and_restart();
+  }
+#endif
+
+#ifdef SUPPORT_SET_SERIAL_NUMBER
+	if(adfu_restart_flag == 1) {
+		gadget_andorid_shutdown_machine();
+	}
+#endif
 	return 0;
 }
 
@@ -2059,7 +2070,6 @@ static int do_scsi_command(struct fsg_common *common)
 		if (reply == 0)
 			reply = do_write(common);
 		break;
-
 	/*
 	 * Some mandatory commands that we recognize but don't implement.
 	 * They don't mean much in this setting.  It's left as an exercise

@@ -56,6 +56,20 @@ struct dwc3;
 /* DEPXFERCFG parameter 0 */
 #define DWC3_DEPXFERCFG_NUM_XFER_RES(n)	((n) & 0xffff)
 
+#define  SUPPORT_NOT_RMMOD_USBDRV 1
+#define USB_CHARGE_DETECT 
+
+enum plugstate{
+	PLUGSTATE_A_OUT=0,
+	PLUGSTATE_B_OUT,
+	PLUGSTATE_A_IN,
+	PLUGSTATE_B_IN,
+	PLUGSTATE_A_SUSPEND,
+	PLUGSTATE_A_RESUME,	
+	PLUGSTATE_B_SUSPEND,
+	PLUGSTATE_B_RESUME,	
+};
+     
 /* -------------------------------------------------------------------------- */
 
 #define to_dwc3_request(r)	(container_of(r, struct dwc3_request, request))
