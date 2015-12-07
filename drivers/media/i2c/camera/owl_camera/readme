@@ -1,0 +1,224 @@
+isp dts config\A3\BA
+
+\B5\DAһ\B2\BD\A3\BA
+leopard\build\gs703a\config\dts
+
+\CC\ED\BC\D3\C8\E7\CF\C2\C4\DA\C8ݣ\BA
+	aliases {
+    ...
+		isp0 = &isp0;
+	};
+	
+	isp0: isp@b0270000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "actions,gl5203-isp";
+		reg = <0xb0270000 0x400>;
+		interrupts = < 0 12 0x4 >;
+	};
+	
+	\B5\B1ǰֻ֧\B3\D6һ\B8\F6isp host\A3\AC\C8\E7\B9\FB֧\B3\D6\C1\BD\B8\F6\A3\AC\D4\F2\D0\E8Ҫ\D4\D9\CC\ED\BC\D3\C9\CF\C3\E6\C1\BD\B8\F6\C0\E0\CBƵ\C4\C4\DA\C8ݣ\AC
+	\D2\F2Ϊ\C1\BD\B8\F6isp\D3\D0regs\CAǹ\B2\CF\ED\B5ģ\AC\CB\F9\D2\D4\D4\DA֧\B3ֵڶ\FE\B8\F6hostʱ\A3\AC\B5\D8ַ\BF\C9\D2\D4\C9\D4΢\B8ı\E4һ\CF£\AC
+	\B6\D4\C7\FD\B6\AF\B6\F8\D2ѣ\AC\B2\A2û\D3\D0\D3õ\BD\D5\E2\C0\EF\CCṩ\BCĴ\E6\C6\F7\B7\B6Χ\B5\C4ֵ\A1\A3
+	
+	ע\D2⣺\C9\CF\CA\F6aliases\D6е\C4isp0\A3\AC\C6\E40\B1\EDʾΪ\B5\DAһ\B8\F6isp host\A3\ACsensor \C7\FD\B6\AF\B5\C4
+	struct soc_camera_link.bus_idʹ\D3õľ\CD\CAǸ\C3ֵ\A3\AC\D4\DAsensor\B5\C4dts\C5\E4\D6\C3\D6У\AC
+	\C6\E4Ĭ\C8\CFֵΪ0\A3\BB
+	
+	֧\B3\D6\C1\BD\B8\F6ispʱ\A3\AC\BFɸ\C4Ϊ\A3\BA
+	aliases {
+    ...
+		isp0 = &isp0;
+		isp1 = &isp1;
+	};
+	
+	isp0: isp@b0270000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "actions,gl5203-isp";
+		reg = <0xb0270000 0x400>;
+		interrupts = < 0 12 0x4 >;
+	};
+	isp1: isp@b02701ec {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "actions,gl5203-isp";
+		reg = <0xb02701ec 0x214>;
+		interrupts = < 0 12 0x4 >;
+	};
+
+\B5ڶ\FE\B2\BD\A3\BA
+build\gs703a\config\boards\board_type\dts \A3\A8board_typeΪ\BE\DF\CC\E5\B5İ\E6\D0ͣ\AC\C0\FD\C8磺
+liger_fpga\A3\A9\A3\BA
+
+\CC\ED\BCӵ\C4\C4\DA\C8ݣ\BA
+pinctrl\CF\E0\B9ز\BF\B7֣\BA
+  pinctrl@b01b0040 {
+          pinctrl-names = "default";
+          pinctrl-0 = <&state_default>;
+          
+          /* the format of isp state name: channel + pin + bus type(pin function) */
+          /* channel: isp0/isp1, pin: csi/bt/sens1, bus type: dvp/mipi */
+          isp0_state_csi_dvp: isp0_csi_dvp {
+                  isp0_csi_dvp_mfp {
+                          asoc,groups = "mfp3_31", "mfp3_29_28", "mfp3_15_14", "mfp3_13_12";
+                          asoc,function = "sens0";
+                  };
+          };
+
+          isp0_state_csi_mipi: isp0_csi_mipi {
+                  isp0_csi_mipi_mfp {
+                          asoc,groups = "mfp3_29_28", "mfp3_15_14";
+                          asoc,function = "mipi_csi";
+                  };
+                  isp0_csi_mipi_clkout_mfp {
+                          asoc,groups = "mfp3_31";
+                          asoc,function = "sens0";
+                  };
+          };
+
+          isp0_state_bt_dvp: isp0_bt_dvp {
+                  isp0_bt_dvp_mfp {
+                          asoc,groups = "mfp0_31_29", "mfp0_28_26", "mfp0_25_24", "mfp0_23_22", "mfp0_21_20";
+                          asoc,function = "sens0";
+                  };
+                  isp0_bt_dvp_clkout_mfp {
+                          asoc,groups = "mfp3_31";
+                          asoc,function = "sens0";
+                  };
+          };
+
+          isp1_state_csi_dvp: isp1_csi_dvp {
+                  isp1_csi_dvp_mfp {
+                          asoc,groups = "mfp3_29_28", "mfp3_15_14", "mfp3_11_10", "mfp3_3_2";
+                          asoc,function = "sens1";
+                  };
+          };
+
+          isp1_state_csi_mipi: isp1_csi_mipi {
+                  /* should not select it when 'isp0_state_csi_mipi' is selected, and vice versa */
+                  isp1_csi_mipi_mfp {
+                          asoc,groups = "mfp3_29_28", "mfp3_15_14";
+                          asoc,function = "mipi_csi";
+                  };
+                  isp1_csi_mipi_clkout_mfp {
+                          asoc,groups = "mfp3_3_2";
+                          asoc,function = "sens1";
+                  };
+          };
+
+          isp1_state_sens1_dvp: isp1_sens1_dvp {
+                  isp1_sens1_dvp_mfp {
+                          asoc,groups = "mfp3_11_10", "mfp3_9_7", "mfp3_6_4", "mfp3_3_2", "mfp3_1_0";
+                          asoc,function = "sens1";
+                  };
+          };
+
+  }
+  
+\B9\D8ϵͼ\A3\BA
+
+channel        PIN       BUS TYPE
+
+                     /-- DVP
+         /---- CSI -|
+        /            \-- MIPI   (1)
+sens0 -|
+        \
+         \---- BT  -| -- DVP
+
+                     /-- DVP
+         /---- CSI -|
+        /            \-- MIPI    (2)
+sens1 -|
+        \
+         \---- P_SEN1 -|-- DVP
+
+ע\D2⣺MIPI\A3\A81,2\A3\A9ֻ\C4\DC\D3\C9һ\B8\F6channel\A3\AC\D2\F2ΪPIN\D7\E9\CA\C7һ\D1\F9\B5ģ\A8\B5\B1ǰ\B5\C4PIN\CA\C7\D4\DAprobeʱ\C5\E4\D6õģ\A9\A3\BB
+
+ע\CA\CD\D6\D0\D2Ѿ\AD˵\C3\F7\C1\CBisp pinctrl\B5\C4\C3\FC\C3\FB\B9\E6\D4򣬴\D3ѡ\D4\F1\B5\C4pin\D7\E9\C3\FB\D7\D6\C9Ͽ\C9\D2Ի\F1\B5þ\DF\CC\E5\B5\C4\C5\E4\D6\C3\D0\C5Ϣ\A3\BB
+SOC\C9\CF\D3\D0\C1\BD\B8\F6ISP channel\A3\AC\D4\DA\C8\ED\BC\FE\C9Ͽɶ\D4Ӧ\C1\BD\B8\F6host\A3\AC\B6\D4\D3\DAchannel0\A3\A8\BB\F2\D5\DFsens0\A3\A9\D3\D0\C1\BD\D7\E9pin\BF\C9\D2\D4ʹ\D3ã\AC
+һ\CA\C7CSI\A3\AC\B6\FE\CA\C7BT\A3\AC\B5\B1ʹ\D3\C3CSI \D7\E9pinʱ\A3\AC\D7\DC\CF߿\C9\D2\D4\C5\E4\D6\C3ΪDVP\BA\CDMIPI\A3\AC\B6\F8\C8\E7\B9\FBʹ\D3\C3BT\A3\AC\D4\F2\CA\FD\BE\DD\D7\DC\CF\DFֻ\C4\DC\CA\C7
+DVP\A3\BB\B6\D4\D3\DAchannel1\A3\A8\BB\F2\D5\DFsens0\A3\A9Ҳ\D3\D0\C1\BD\D7\E9pin\BF\C9\D2\D4ʹ\D3ã\ACһ\CA\C7CSI\A3\AC\B6\FE\CA\C7P_SEN1\A3\AC\C8\E7\B9\FBʹ\D3\C3CSI\D7\E9pin\A3\AC
+\CA\FD\BE\DD\D7\DC\CF\DF\C0\E0\D0Ϳ\C9\D2\D4ѡ\D4\F1DVP\BB\F2\D5\DFMIPI\A3\AC\C8\E7\B9\FBʹ\D3\C3P_SEN1\A3\AC\D4\F2\CA\FD\BE\DD\D7\DC\CF\DFֻ\C4\DC\CA\C7DVP\A3\BB\B4\D3\C9\CF\C3\E6\BF\C9\D2Կ\B4\B3\F6\B6\D4\D3\DACSI
+\D7\E9pin\B6\F8\D1ԣ\AC֧\B3\D6\C1\BD\D6\D6\CA\FD\BE\DD\D7\DC\CF\DF\C0\E0\D0ͣ\AC\D3\C9\D3\DA\C1\BD\B8\F6channelֻ\C4\DC\D3\D0һ\B8\F6\BF\C9\D2\D4ʹ\D3\C3CSI\D7\E9pin\A3\AC\B9\CA\C8\E7\B9\FB\C1\BD\B8\F6channel
+ͬʱʹ\D3ã\AC\D4\F2\BD\F6\D3\D0һ\B8\F6channel\B5\C4\CA\FD\BE\DD\D7\DC\CF\DFΪMIPI\A3\BB
+\D5\E2\C0\EF\D3\D0һ\B8\F6\CE\CA\CC⣺\D4\DAѡ\D4\F1һ\D7\E9pin\C5\E4\D6\C3ʱ\A3\AC\C0\FD\C8\E7isp0_state_bt_dvp\A3\AC\D3\C9\D3\DA\C6\E4bt\D7\E9\B5\C4pin\D2Ѿ\AD\CCṩ\C1\CBpclk\A3\AC
+\B9\CA\D0\E8Ҫ\B9ر\D5sens0_pclk\CCṩ\B5\C4pclk[mfp_ctl3.sens0_pclk]\A3\AC\BC\B4\C9\E8\D6\C3Ϊ\B7\C70ֵ\A3\AC\B5\AB\CAǲ\BB֪\B5\C0\C9\E8\D6\C3Ϊ\BA\CEֵ\B1ȽϺã\AC
+\D2\F2Ϊһ\B5\A9\D4\DApinctrl\C0\EFʹ\D3ã\AC\BBᵼ\D6\C2\C6\E4\CB\FB\CF\E0Ӧ\B5\C4ģ\BF\E9\CE޷\A8ʹ\D3ã\AC\D5\E2\D0\E8Ҫpinctrlģ\D7\E9\D7\F6\CF\E0Ӧ\B5Ĵ\A6\C0\ED\A3\AC\B5\ABĿǰ
+ÿ\B8\F6pinֻ\C4\DC\D3\D0һ\B8\F6ģ\BF\E9ʹ\D3ã\AC\D5\E2\D4\DApinctrl\C0\EFû\D3з\B4Ӧ\B3\F6\C0\B4\A3\AC\C8\E7\B9\FB\B2\BB\B9رգ\AC\D4\F2isp\CE޷\A8\D5\FD\B3\A3\B9\A4\D7\F7\A3\BB
+\C8\E7\B9\FBʹ\D3\C3MIPI\A3\AC\C6\E4ʵpinctrl\C5\E4\D6\C3\CA\C7һ\D1\F9\B5ģ\A8\BF\C9\C4\DC\D0\E8Ҫ\B9رղ\BBͬ\B5\C4pclk\A3\AC\B5\ABĿǰ\BB\B9û\B7\B4Ӧ\B3\F6\C0\B4\A3\A9\A3\AC\C7\D2ֻ\C4\DC\D3\D0
+һ\B8\F6channel\BF\C9\D2\D4ʹ\D3ã\AC\B4\CBʱ\CCṩ\C1\BD\B8\F6\A3\AC\CA\C7\C8\C3isp driver֪\B5\C0\B5\B1ǰʹ\D3\C3\C1\CB\C4ĸ\F6channel\A3\BB
+
+	isp@b0270000 {
+		avdd-src = "regulator";  /* only: "gpio", "regulator" */
+
+		avdd-gpios = <&gpio 14 0>; /* GPIOA14, 0: high, 1: low only when vbus-src is "gpio" */
+
+		avdd-regulator = "LDO1"; /* only when vbus-src is "regulator" */
+		avdd-regulator-scope = <2800000 2810000>;  /* uV */
+		dvdd-regulator = "LDO7";
+		dvdd-regulator-scope = <1800000 1810000>;  /* uV */
+
+		sensors = "dual"; /* "dual", "front" or "rear" */
+		pwdn-rear-gpios = <&gpio 119 0>; /* GPIOC23 */
+		pwdn-front-gpios = <&gpio 120 0>; /* GPIOC24 */
+		reset-gpios = <&gpio 121 0>; /* GPIOC25 */
+
+		status = "okay"; /* create platform-device */
+	};
+	\B8\C3\C5\E4\D6ð\FC\BA\AC\C1\BD\B2\BF\B7֣\BAһ\CAǵ\E7Դ\CF\E0\B9أ\AC\B6\FE\CA\C7gpio\CF\E0\B9أ\BBÿ\B8\F6isp host\B6\BC\D0\E8Ҫ\B6\C0\C1\A2\B5\C4\C5\E4\D6ã\AC
+	\D2\F2Ϊ\B8\F7\B8\F6isp host\B6\BC\D0\E8ҪΪ\B9\D2\D4\DA\C6\E4\C9ϵ\C4sensor\CCṩavdd\A3\ACdvdd\B5ȵ\E7ѹ\A3\AC\D2Լ\B0ǰ\BA\F3\C9\E3\CF\F1ͷ
+	\B5\C4power gpio\BA\CDreset gpio\C5\E4\D6á\A3
+	
+	\B8\F7\CF\EE\C5\E4\D6õ\C4˵\C3\F7\A3\BA
+	avdd-src\A3\BA ˵\C3\F7avdd\CA\C7\C4\C4\D6ַ\BDʽ\CCṩ\A3\ACĿǰֻ\D3\D0gpio\A3\AC\BA\CDregulator\C1\BD\D6ַ\BDʽ\A3\AC
+	           \C8\E7\B9\FB\CA\C7gpio\B7\BDʽ\A3\AC\D4\F2\BD\F6\D0\E8Ҫ\C5\E4\D6\C3avdd-gpios\A3\AC\B4\CBʱgpio\CA\C7\D7\F7Ϊ\B4\F2\BF\AAavdd
+	           \B5Ŀ\AA\B9أ\BB\B7\F1\D4\F2\BD\F6\D0\E8Ҫavdd-regulator\BA\CDavdd-regulator-scope\A3\AC
+	           ˵\C3\F7\D0\E8Ҫʹ\D3\C3\C4Ǹ\F6regulator\A3\AC\BC\B0\C6\E4ʹ\D3õķ\B6Χ\A3\BB
+	           \B4\CB\C1\BD\D6\D6\CAǻ\A5\B3\E2\B5ġ\A3
+	dvdd-regulator\A3\BAʹ\D3õ\C4regulator\A3\AC\B8\C3\C3\FB\D7\D6\D3\C9regulator \C7\FD\B6\AF\BE\F6\B6\A8\A3\AC\B9\CAҪ\BA\CD\C6\E4һ\D6£\BB
+	dvdd-regulator-scope\A3\BA \B8\C3regulator\B5ķ\B6Χ\A3\BB
+	sensors\A3\BA\B1\ED\C3\F7\B5\B1ǰhostʹ\D3õ\C4sensor\C7\E9\BF\F6\A3\AC\D3\D0\C8\FD\D6֣\BA\B5\A5\C9\E3\CF\F1ͷʱ\B0\FC\C0\A8ǰ\D6úͺ\F3\D6ã\AC
+	         \BC\B0˫\C9\E3\CF\F1ͷ\A3\BB
+	pwdn-rear-gpios\A3\BA\BA\F3\D6\C3\C9\E3\CF\F1ͷ\B5\C4power gpio\C5\E4\D6ã\AC"dual" or "rear"ʱʹ\D3ã\BB
+	pwdn-front-gpios\A3\BAǰ\D6\C3\C9\E3\CF\F1ͷ\B5\C4power gpio\C5\E4\D6ã\AC"dual" or "front"ʱʹ\D3ã\BB
+  reset-gpios\A3\BA\C9\E3\CF\F1ͷ\B5\C4reset gpio\C5\E4\D6ã\AC\BE\F9ʹ\D3ã\BB
+
+  status\A3\BA\C9\E8\D6\C3Ϊokay\A3\ACϵͳ\BB\E1\D7Զ\AFΪ\B8\C3isp\B4\B4\BD\A8platform-device\A1\A3
+
+  ֧\B3\D6˫hostʱ\A3\AC\D0\E8\CC\ED\BCӵ\C4\C5\E4\D6\C3Ϊ\A3\AC\B4\CBʱ\B2\BB\C4\DC֧\B3\D63Dģʽ\A3\BA
+	isp@b02701ec {
+    ... // ͬ\C9\CF
+		status = "okay"; /* create platform-device */
+	};
+	ע\D2⣺---\BB\F9\B1\BE\C9ϲ\BB\BB\E1\D3\D0˫host\B5\C4\D0\E8\C7\F3---
+
+
+\B5\DA\C8\FD\B2\BD\A3\BA
+	\C8\E7\B9\FB֧\B3\D6˫host\A3\AC\C7\FD\B6\AF\D0\E8Ҫ\B5ĸĶ\AFΪ\A3\BA
+	\C1\BD\B8\F6isp hostʹ\D3\C3ͬһ\B8\F6isr\A3\AC\B9\CA\D4\DAprobeʱ\A3\AC\D0\E8Ҫ\D4\DAȫ\BEֱ\E4\C1\BF\C0ﱣ\B4浱ǰ\B7\D6\C5\E4\B5\C4
+	struct gl5203_camera_dev\BDṹ\CC壬\B2\A2\D4\DAisr\D6и\F9\BE\DDpreline pending\C0\B4\BE\F6\B6\A8ʹ\D3\C3
+	\C4ĸ\F6gl5203_camera_dev\A3\AC\D2\D4ѡ\D6в\BBͬ\B5\C4videobuf\B6\D3\C1У\BB\C7\D2isrֻ\C4\DCע\B2\E1һ\B4Σ\BB
+
+	\B4\D3Ӧ\D3ó\A1\BE\B0\B6\F8\D1ԣ\AC\BB\F9\B1\BE\C9ϲ\BB\BBᴴ\BD\A8\C1\BD\B8\F6host\A3\BA\B5\B1ǰ֧\B3ֵ\C4ǰ\BA\F3\C9\E3\CF\F1ͷ\BE\F9\B2\BB\BB\E1ͬʱʹ\D3ã\AC
+	һ\B8\F6host\BC\B4\BF\C9\C2\FA\D7㣻\B3\FD\B7\C7ǰ\BA\F3\C9\E3\CF\F1ͷͬʱʹ\D3ã\AC\B7\F1\D4\F2\CE\DE\D0贴\BD\A8\C1\BD\B8\F6host\A3\BB
+	\B6\D4\D3\DA3D\B6\F8\D1ԣ\AC\B2Ż\E1ͬʱʹ\D3\C3\C1\BD\B8\F6channel\A3\AC\B5\AB\D4\DA\CA\FD\BE\DD\C9\CFӲ\BC\FE\BB\E1\B0\D1\C1\BD\B8\F6\CA\FD\BE\DD\C1\F7\BAϲ\A2Ϊһ\B8\F6\A3\AC\C8\ED\BC\FE
+	\C9\CFҲ\BE\CDֻʹ\D3\C3һ\B8\F6host\A3\BB
+	
+GPIO \B9\DC\C0\ED\B5\C4˵\C3\F7\A3\BA
+  \D4\DA5202\C9ϣ\ACpoweroff/on reset\B5\C4gpio\CA\C7\D3\C9sensor driver\C9\EA\C7벢\C5\E4\D6õģ\AC\C7\D2\D4\DApoweroff/on
+ʱ\B6\BC\BB\E1\B7\D6\C5\E4\BA\CD\CAͷţ\AC\B4\CB\D7\F6\B7\A8\D3е㲻\CDף\AC\B6\F8\C7Ҳ\BB\C0\FB\D3\DAsensor driver\B5ĸ\B4\D3á\A3
+  \B6\D4\D3\DAͬһ\BF\EEsensor\A3\AC\BF\C9\D2\D4\D7\F7Ϊǰ\D6\C3\C9\E3\CF\F1ͷ\A3\ACҲ\BF\C9\D2\D4\D7\F7Ϊ\BA\F3\D6\C3\C9\E3\CF\F1ͷ\A3\AC\BCȿ\C9\D2\D4\D4\DAdemo\C9\CFʹ\D3ã\AC
+Ҳ\BF\C9\D2\D4\D4\DAevb\B5\C8\C9\CFʹ\D3ã\AC\D4ڲ\BBͬ\B5İ\E5\D7\D3\C9ϣ\AC\BB\E1\C9漰\B5\BD\B2\BBͬ\B5\C4gpio\C5\E4\D6ã\BB
+  \D7\EE\D6\D8Ҫ\B5\C4һ\B5\E3\CAǣ\ACgpio\B2\BB\CA\C7\D3\C9sensor\BE\F6\B6\A8\B5ģ\AC\B6\F8\CA\C7\D3ɰ\E6\D0;\F6\B6\A8\B5ģ\AC\B6\D4\D3\DAͬһ\B8\F6\B0\E6\D0ͣ\AC\BF\C9\D2\D4
+ʹ\D3ò\BBͬ\BF\EE\B5\C4sensor\A3\ACֻҪ\B1\A3֤pin\D0\F2\C1кͲ\E5\B2۵\C4һ\D6¼\B4\BFɣ\AC\D2\F2\B6\F8\B7\C5\D4\DAsensor driver\B2\BB\BA\CF\C0\ED\A3\AC
+\D7\EE\BA\C3\CAǷ\C5\D4ڰ\E6\D0͵Ĺ\AB\B9\B2\B4\FA\C2\EB\D6У\AC\BB\F2\D5\DFֱ\BDӷ\C5\D4\DAisp driver\C4ڡ\A3
+  \B7\C5\D4\DAsensor dirver\D6У\AC\B2\BB\C0\FB\D3\DAsensor driver\B5\C4\D2\C6ֲ\A3\AC\B6\F8\C7һ\E1\D3\D0\D6ظ\B4\C5\E4\D6ò\D9\D7\F7\A3\AC\B6\F8\B7\C5\D4\DAisp
+driver\D6\D0ͳһ\B9\DC\C0\ED\A3\AC\BB\E1\B1Ƚϼ\F2\B5\A5Щ\A1\A3
+  \B0\D1gpio\B5\C4\C9\EA\C7\EB\BA\CD\CAͷţ\AC\B7\C5\D4\DAisp driver\C4ڣ\AC\BBᵼ\D6\C2һ\B8\F6\CE\CA\CC⣬\D2\F2Ϊ\D5\E2Щgpio\B5\C4ʹ\D3\C3\CA\C7\D4\DA
+struct soc_camera_link\D6У\AC\C6\E4һ\B0㶨\D2\E5\D4\DAsensor driver\A3\AC\D2Ա\E3sensor\B5Ŀ\C9\CC\E6\B4\FA\D0ԡ\A3\B9ʶ\D4\D3\DA
+gpio\B5Ĳ\D9\D7\F7\BDӿڣ\AC\D6\F7ҪΪpoweron/off\BA\CDreset\A3\AC\D0\E8Ҫ\B6\D4sensor driver\BFɼ\FB\A3\AC\D2\F2\B6\F8\B7\C5\D4\DA\C1\CBkernel
+\B5İ\E6\D0ʹ\FA\C2\EB\C4ڣ\AC\BC\B4arch/arm/mach-liger/isp_pwd.c\CEļ\FE\A3\BB
+                                                    
+                                            yunchf\A3\AC2013-05-20

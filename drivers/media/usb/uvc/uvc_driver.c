@@ -1718,7 +1718,7 @@ static void uvc_unregister_video(struct uvc_device *dev)
 
 		video_unregister_device(&stream->vdev);
 
-		uvc_debugfs_cleanup_stream(stream);
+		uvc_debugfs_cleanup_stream(stream);	
 	}
 
 	/* Decrement the stream count and call uvc_delete explicitly if there
@@ -1772,15 +1772,21 @@ static int uvc_register_video(struct uvc_device *dev,
 	video_set_drvdata(vdev, stream);
 
 	ret = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
+
 	if (ret < 0) {
 		uvc_printk(KERN_ERR, "Failed to register video device (%d).\n",
 			   ret);
 		return ret;
 	}
 
-	if (stream->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	/**
+ 	* BUGFIX: Add specific usbcamera dropframes demand support .
+ 	*ActionsCode(author:liyuan, change_code)
+ 	*/
+	if (stream->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
 		stream->chain->caps |= V4L2_CAP_VIDEO_CAPTURE;
-	else
+		get_dropframesnum(stream);
+	} else
 		stream->chain->caps |= V4L2_CAP_VIDEO_OUTPUT;
 
 	atomic_inc(&dev->nstreams);

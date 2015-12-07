@@ -142,6 +142,10 @@ static __u32 uvc_try_frame_interval(struct uvc_frame *frame, __u32 interval)
 	return interval;
 }
 
+#ifdef ASOC_CAMERA
+extern int uvc_get_buffer_size(struct uvc_streaming *stream, struct uvc_format *format, struct uvc_frame *frame);
+#endif
+
 static int uvc_v4l2_try_format(struct uvc_streaming *stream,
 	struct v4l2_format *fmt, struct uvc_streaming_control *probe,
 	struct uvc_format **uvc_format, struct uvc_frame **uvc_frame)
@@ -246,7 +250,11 @@ static int uvc_v4l2_try_format(struct uvc_streaming *stream,
 	fmt->fmt.pix.height = frame->wHeight;
 	fmt->fmt.pix.field = V4L2_FIELD_NONE;
 	fmt->fmt.pix.bytesperline = format->bpp * frame->wWidth / 8;
+#ifdef ASOC_CAMERA
+	fmt->fmt.pix.sizeimage = uvc_get_buffer_size(stream, format, frame);
+#else
 	fmt->fmt.pix.sizeimage = probe->dwMaxVideoFrameSize;
+#endif
 	fmt->fmt.pix.colorspace = format->colorspace;
 	fmt->fmt.pix.priv = 0;
 
@@ -283,7 +291,11 @@ static int uvc_v4l2_get_format(struct uvc_streaming *stream,
 	fmt->fmt.pix.height = frame->wHeight;
 	fmt->fmt.pix.field = V4L2_FIELD_NONE;
 	fmt->fmt.pix.bytesperline = format->bpp * frame->wWidth / 8;
+#ifdef ASOC_CAMERA
+	fmt->fmt.pix.sizeimage = uvc_get_buffer_size(stream, format, frame);
+#else
 	fmt->fmt.pix.sizeimage = stream->ctrl.dwMaxVideoFrameSize;
+#endif
 	fmt->fmt.pix.colorspace = format->colorspace;
 	fmt->fmt.pix.priv = 0;
 

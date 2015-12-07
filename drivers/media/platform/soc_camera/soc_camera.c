@@ -2084,6 +2084,19 @@ static int soc_camera_device_register(struct soc_camera_device *icd)
 	return 0;
 }
 
+static long soc_camera_vidioc_default(struct file *file, void *fh, bool valid_prio,
+               unsigned int cmd, void *arg)
+{
+	struct soc_camera_device *icd = file->private_data;
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
+
+	if(sd->ops->core && sd->ops->core->ioctl) {
+		return sd->ops->core->ioctl(sd, cmd, arg);
+	} else {
+		return -ENOTTY;
+	}
+}
+
 static const struct v4l2_ioctl_ops soc_camera_ioctl_ops = {
 	.vidioc_querycap	 = soc_camera_querycap,
 	.vidioc_try_fmt_vid_cap  = soc_camera_try_fmt_vid_cap,
@@ -2112,6 +2125,7 @@ static const struct v4l2_ioctl_ops soc_camera_ioctl_ops = {
 	.vidioc_s_selection	 = soc_camera_s_selection,
 	.vidioc_g_parm		 = soc_camera_g_parm,
 	.vidioc_s_parm		 = soc_camera_s_parm,
+	.vidioc_default      = soc_camera_vidioc_default,
 };
 
 static int video_dev_create(struct soc_camera_device *icd)
@@ -2143,6 +2157,9 @@ static int soc_camera_video_start(struct soc_camera_device *icd)
 {
 	const struct device_type *type = icd->vdev->dev.type;
 	int ret;
+	struct soc_camera_desc *sdesc = to_soc_camera_desc(icd);
+	struct soc_camera_subdev_desc *ssdd = &sdesc->subdev_desc;
+	struct module_info *info = ssdd->drv_priv;
 
 	if (!icd->parent)
 		return -ENODEV;
@@ -2154,7 +2171,7 @@ static int soc_camera_video_start(struct soc_camera_device *icd)
 		v4l2_disable_ioctl(icd->vdev, VIDIOC_S_STD);
 		v4l2_disable_ioctl(icd->vdev, VIDIOC_ENUMSTD);
 	}
-	ret = video_register_device(icd->vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(icd->vdev, VFL_TYPE_GRABBER,info->video_devnum);
 	if (ret < 0) {
 		dev_err(icd->pdev, "video_register_device failed: %d\n", ret);
 		return ret;

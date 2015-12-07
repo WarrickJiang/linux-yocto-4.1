@@ -796,6 +796,11 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_AUTO_FOCUS_STOP:		return "Auto Focus, Stop";
 	case V4L2_CID_AUTO_FOCUS_STATUS:	return "Auto Focus, Status";
 	case V4L2_CID_AUTO_FOCUS_RANGE:		return "Auto Focus, Range";
+	case V4L2_CID_EXPOSURE_COMP:		return "Exposure Compensation";
+	case V4L2_CID_AF_MODE:		return "auto focus mode";
+	case V4L2_CID_AF_STATUS:		return "focus status";
+	case V4L2_CID_AF_REGION:		return "zone focus region";
+	case V4L2_CID_MIRRORFLIP:		return "set flip and mirror";
 	case V4L2_CID_PAN_SPEED:		return "Pan, Speed";
 	case V4L2_CID_TILT_SPEED:		return "Tilt, Speed";
 
@@ -1595,42 +1600,6 @@ static void cur_to_new(struct v4l2_ctrl *ctrl)
 	if (ctrl == NULL)
 		return;
 	ptr_to_ptr(ctrl, ctrl->p_cur, ctrl->p_new);
-}
-
-/* Return non-zero if one or more of the controls in the cluster has a new
-   value that differs from the current value. */
-static int cluster_changed(struct v4l2_ctrl *master)
-{
-	bool changed = false;
-	unsigned idx;
-	int i;
-
-	for (i = 0; i < master->ncontrols; i++) {
-		struct v4l2_ctrl *ctrl = master->cluster[i];
-		bool ctrl_changed = false;
-
-		if (ctrl == NULL)
-			continue;
-
-		if (ctrl->flags & V4L2_CTRL_FLAG_EXECUTE_ON_WRITE)
-			changed = ctrl_changed = true;
-
-		/*
-		 * Set has_changed to false to avoid generating
-		 * the event V4L2_EVENT_CTRL_CH_VALUE
-		 */
-		if (ctrl->flags & V4L2_CTRL_FLAG_VOLATILE) {
-			ctrl->has_changed = false;
-			continue;
-		}
-
-		for (idx = 0; !ctrl_changed && idx < ctrl->elems; idx++)
-			ctrl_changed = !ctrl->type_ops->equal(ctrl, idx,
-				ctrl->p_cur, ctrl->p_new);
-		ctrl->has_changed = ctrl_changed;
-		changed |= ctrl->has_changed;
-	}
-	return changed;
 }
 
 /* Control range checking */
@@ -2997,7 +2966,9 @@ static int try_or_set_cluster(struct v4l2_fh *fh, struct v4l2_ctrl *master,
 	ret = call_op(master, try_ctrl);
 
 	/* Don't set if there is no change */
-	if (ret || !set || !cluster_changed(master))
+	//if (ret || !set || !cluster_changed(master))
+	/* always set if there is no change */
+	if (ret || !set)
 		return ret;
 	ret = call_op(master, s_ctrl);
 	if (ret)
