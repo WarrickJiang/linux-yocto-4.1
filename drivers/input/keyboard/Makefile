@@ -62,3 +62,6 @@ obj-$(CONFIG_KEYBOARD_TEGRA)		+= tegra-kbc.o
 obj-$(CONFIG_KEYBOARD_TWL4030)		+= twl4030_keypad.o
 obj-$(CONFIG_KEYBOARD_XTKBD)		+= xtkbd.o
 obj-$(CONFIG_KEYBOARD_W90P910)		+= w90p910_keypad.o
+obj-$(CONFIG_KEYBOARD_ATC260X_ADCKEY)	+= atc260x-adckeypad.o
+obj-$(CONFIG_KEYBOARD_ATC260X_ONOFF)	+= atc260x-onoff.o
+obj-$(CONFIG_KEYBOARD_ATC260X_IRKEY)    += atc260x-irkeypad.o
