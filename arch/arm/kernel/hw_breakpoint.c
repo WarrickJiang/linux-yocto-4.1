@@ -1024,8 +1024,18 @@ out_mdbgen:
 static int dbg_reset_notify(struct notifier_block *self,
 				      unsigned long action, void *cpu)
 {
-	if ((action & ~CPU_TASKS_FROZEN) == CPU_ONLINE)
+	if ((action & ~CPU_TASKS_FROZEN) == CPU_ONLINE) {
+		/*
+		 * We need to tread carefully here because DBGSWENABLE may be
+		 * driven low on this core and there isn't an architected way to
+		 * determine that.
+		 */
+		register_undef_hook(&debug_reg_hook);
+
 		smp_call_function_single((int)cpu, reset_ctrl_regs, NULL, 1);
+
+		unregister_undef_hook(&debug_reg_hook);
+	}
 
 	return NOTIFY_OK;
 }
@@ -1038,8 +1048,18 @@ static struct notifier_block dbg_reset_nb = {
 static int dbg_cpu_pm_notify(struct notifier_block *self, unsigned long action,
 			     void *v)
 {
-	if (action == CPU_PM_EXIT)
+	if (action == CPU_PM_EXIT) {
+		/*
+		 * We need to tread carefully here because DBGSWENABLE may be
+		 * driven low on this core and there isn't an architected way to
+		 * determine that.
+		 */
+		register_undef_hook(&debug_reg_hook);
+
 		reset_ctrl_regs(NULL);
+
+		unregister_undef_hook(&debug_reg_hook);
+	}
 
 	return NOTIFY_OK;
 }
@@ -1060,9 +1080,17 @@ static inline void pm_init(void)
 
 static int __init arch_hw_breakpoint_init(void)
 {
+	/*
+	 * We need to tread carefully here because DBGSWENABLE may be
+	 * driven low on this core and there isn't an architected way to
+	 * determine that.
+	 */
+	register_undef_hook(&debug_reg_hook);
+	
 	debug_arch = get_debug_arch();
 
 	if (!debug_arch_supported()) {
+		unregister_undef_hook(&debug_reg_hook);
 		pr_info("debug architecture 0x%x unsupported.\n", debug_arch);
 		return 0;
 	}
@@ -1074,14 +1102,7 @@ static int __init arch_hw_breakpoint_init(void)
 	core_num_wrps = get_num_wrps();
 
 	cpu_notifier_register_begin();
-
-	/*
-	 * We need to tread carefully here because DBGSWENABLE may be
-	 * driven low on this core and there isn't an architected way to
-	 * determine that.
-	 */
-	register_undef_hook(&debug_reg_hook);
-
+	
 	/*
 	 * Reset the breakpoint resources. We assume that a halting
 	 * debugger will leave the world in a nice state for us.

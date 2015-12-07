@@ -30,6 +30,9 @@
 #include <linux/genhd.h>
 #include <linux/ktime.h>
 #include <trace/events/power.h>
+#ifdef CONFIG_MACH_OWL
+#include <mach/power.h>
+#endif
 
 #include "power.h"
 
@@ -665,6 +668,9 @@ int hibernate(void)
 
 	printk(KERN_INFO "PM: Syncing filesystems ... ");
 	sys_sync();
+#ifdef CONFIG_MACH_OWL	
+	fs_drop_page_caches();
+#endif
 	printk("done.\n");
 
 	error = freeze_processes();

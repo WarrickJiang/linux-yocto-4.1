@@ -42,6 +42,9 @@
 #include <linux/profile.h>
 #include <linux/notifier.h>
 
+#define CREATE_TRACE_POINTS
+#include <lowmem_killer.h>
+
 static uint32_t lowmem_debug_level = 1;
 static short lowmem_adj[6] = {
 	0,
@@ -83,6 +86,7 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 	int tasksize;
 	int i;
 	short min_score_adj = OOM_SCORE_ADJ_MAX + 1;
+	int minfree = 0;
 	int selected_tasksize = 0;
 	short selected_oom_score_adj;
 	int array_size = ARRAY_SIZE(lowmem_adj);
@@ -96,6 +100,7 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 	if (lowmem_minfree_size < array_size)
 		array_size = lowmem_minfree_size;
 	for (i = 0; i < array_size; i++) {
+		minfree = lowmem_minfree[i];
 		if (other_free < lowmem_minfree[i] &&
 		    other_file < lowmem_minfree[i]) {
 			min_score_adj = lowmem_adj[i];
@@ -159,6 +164,9 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 		lowmem_print(1, "send sigkill to %d (%s), adj %hd, size %d\n",
 			     selected->pid, selected->comm,
 			     selected_oom_score_adj, selected_tasksize);
+
+		trace_lowmem_kill(selected,  other_file, minfree, min_score_adj, other_free);
+		
 		lowmem_deathpending_timeout = jiffies + HZ;
 		/*
 		 * FIXME: lowmemorykiller shouldn't abuse global OOM killer

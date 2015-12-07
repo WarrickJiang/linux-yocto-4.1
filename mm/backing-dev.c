@@ -373,10 +373,17 @@ static void bdi_wb_init(struct bdi_writeback *wb, struct backing_dev_info *bdi)
 	INIT_DELAYED_WORK(&wb->dwork, bdi_writeback_workfn);
 }
 
+#ifdef CONFIG_MACH_OWL
+/*
+ * Initial write bandwidth: 30 MB/s
+ */
+#define INIT_BW		(30 << (20 - PAGE_SHIFT))
+#else
 /*
  * Initial write bandwidth: 100 MB/s
  */
 #define INIT_BW		(100 << (20 - PAGE_SHIFT))
+#endif
 
 int bdi_init(struct backing_dev_info *bdi)
 {

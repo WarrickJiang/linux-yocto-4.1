@@ -214,6 +214,7 @@ machine-$(CONFIG_ARCH_VT8500)		+= vt8500
 machine-$(CONFIG_ARCH_W90X900)		+= w90x900
 machine-$(CONFIG_ARCH_ZYNQ)		+= zynq
 machine-$(CONFIG_PLAT_SPEAR)		+= spear
+machine-$(CONFIG_ARCH_OWL)		:= owl
 
 # Platform directory name.  This list is sorted alphanumerically
 # by CONFIG_* macro name.

@@ -490,6 +490,11 @@ struct request_queue {
 	struct list_head	tag_set_list;
 };
 
+struct uparam {
+	unsigned int flash_partition;
+	unsigned int devnum_in_phypart;
+};
+
 #define QUEUE_FLAG_QUEUED	1	/* uses generic tag queueing */
 #define QUEUE_FLAG_STOPPED	2	/* queue is stopped */
 #define	QUEUE_FLAG_SYNCFULL	3	/* read queue has been filled */
@@ -1095,7 +1100,7 @@ struct blk_plug {
 	struct list_head mq_list; /* blk-mq requests */
 	struct list_head cb_list; /* md requires an unplug callback */
 };
-#define BLK_MAX_REQUEST_COUNT 16
+#define BLK_MAX_REQUEST_COUNT 1
 
 struct blk_plug_cb;
 typedef void (*blk_plug_cb_fn)(struct blk_plug_cb *, bool);
@@ -1616,6 +1621,17 @@ struct block_device_operations {
 	/* this callback is with swap_lock and sometimes page table lock held */
 	void (*swap_slot_free_notify) (struct block_device *, unsigned long);
 	struct module *owner;
+
+	/*
+	* following code added by actions 2012-07-09
+	*/
+	unsigned int (*blk_read)(unsigned long, unsigned long, void * ,struct inode *);
+	unsigned int (*blk_write)(unsigned long, unsigned long, void * ,struct inode *);
+
+	int (*adfu_read)(unsigned long start, unsigned long nsector, void *buf, struct uparam * i);
+	int (*adfu_write)(unsigned long start, unsigned long nsector, void *buf, struct uparam * i); 	
+	
+	void (*flush_disk_cache)(void);
 };
 
 extern int __blkdev_driver_ioctl(struct block_device *, fmode_t, unsigned int,

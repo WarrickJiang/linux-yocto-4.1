@@ -28,6 +28,8 @@ config ANDROID_LOW_MEMORY_KILLER
 	---help---
 	  Registers processes to be killed when memory is low
 
+source "drivers/staging/android/switch/Kconfig"
+
 config SYNC
 	bool "Synchronization framework"
 	default n

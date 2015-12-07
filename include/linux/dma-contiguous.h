@@ -62,6 +62,7 @@ struct page;
 
 extern struct cma *dma_contiguous_default_area;
 
+void dma_contiguous_set_global_reserve_size(phys_addr_t new_size); /* add by actions */
 static inline struct cma *dev_get_cma_area(struct device *dev)
 {
 	if (dev && dev->cma_area)
@@ -127,6 +128,7 @@ static inline void dev_set_cma_area(struct device *dev, struct cma *cma) { }
 
 static inline void dma_contiguous_set_default(struct cma *cma) { }
 
+static inline void dma_contiguous_set_global_reserve_size(phys_addr_t new_size) { }  /* add by actions */
 static inline void dma_contiguous_reserve(phys_addr_t limit) { }
 
 static inline int dma_contiguous_reserve_area(phys_addr_t size, phys_addr_t base,

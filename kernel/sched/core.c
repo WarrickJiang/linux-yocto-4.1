@@ -2397,6 +2397,14 @@ bool single_task_running(void)
 }
 EXPORT_SYMBOL(single_task_running);
 
+unsigned long get_cpu_nr_running(unsigned int cpu)
+{
+	if(cpu < NR_CPUS)
+		return cpu_rq(cpu)->nr_running;
+	else
+		return 0;
+}
+
 unsigned long long nr_context_switches(void)
 {
 	int i;

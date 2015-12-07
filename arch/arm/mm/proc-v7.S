@@ -257,8 +257,11 @@ ENDPROC(cpu_pj4b_do_resume)
  *	It is assumed that:
  *	- cache type register is implemented
  */
-__v7_ca5mp_setup:
 __v7_ca9mp_setup:
+	mrc	p15, 0, r0, c1, c0, 1
+	orr	r0, r0, #((1 << 1) | (1 << 2))
+	mcr	p15, 0, r0, c1, c0, 1
+__v7_ca5mp_setup:
 __v7_cr7mp_setup:
 	mov	r10, #(1 << 0)			@ Cache/TLB ops broadcasting
 	b	1f

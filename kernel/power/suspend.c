@@ -32,7 +32,11 @@
 
 #include "power.h"
 
-const char *pm_labels[] = { "mem", "standby", "freeze", NULL };
+#ifdef CONFIG_EARLYSUSPEND
+	const char *pm_labels[] = { "mem", "standby", "freeze", "on" };
+#else
+	const char *pm_labels[] = { "mem", "standby", "freeze", NULL };
+#endif
 const char *pm_states[PM_SUSPEND_MAX];
 
 static const struct platform_suspend_ops *suspend_ops;
@@ -373,6 +377,7 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 	arch_suspend_enable_irqs();
 	BUG_ON(irqs_disabled());
 
+	outer_resume();
  Enable_cpus:
 	enable_nonboot_cpus();
 

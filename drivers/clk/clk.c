@@ -671,6 +671,36 @@ unsigned long __clk_get_rate(struct clk *clk)
 }
 EXPORT_SYMBOL_GPL(__clk_get_rate);
 
+static unsigned long clk_core_get_newrate_nolock(struct clk_core *clk)
+{
+	unsigned long ret;
+
+	if (!clk) {
+		ret = 0;
+		goto out;
+	}
+
+	ret = clk->new_rate;
+
+	if (clk->flags & CLK_IS_ROOT)
+		goto out;
+
+	if (!clk->parent)
+		ret = 0;
+
+out:
+	return ret;
+}
+
+unsigned long __clk_get_newrate(struct clk *clk)
+{
+	if (!clk)
+		return 0;
+
+	return clk_core_get_newrate_nolock(clk->core);
+}
+EXPORT_SYMBOL_GPL(__clk_get_newrate);
+
 static unsigned long __clk_get_accuracy(struct clk_core *clk)
 {
 	if (!clk)
@@ -684,6 +714,24 @@ unsigned long __clk_get_flags(struct clk *clk)
 	return !clk ? 0 : clk->core->flags;
 }
 EXPORT_SYMBOL_GPL(__clk_get_flags);
+
+void __clk_set_flags(struct clk *clk, unsigned long flags)
+{
+	clk->core->flags = flags;
+}
+EXPORT_SYMBOL_GPL(__clk_set_flags);
+
+const struct clk_ops *__clk_get_ops(struct clk *clk)
+{
+	return !clk ? NULL : clk->core->ops;
+}
+EXPORT_SYMBOL_GPL(__clk_get_ops);
+
+void __clk_set_ops(struct clk *clk, const struct clk_ops *clk_ops)
+{
+	clk->core->ops = clk_ops;
+}
+EXPORT_SYMBOL_GPL(__clk_set_ops);
 
 static bool clk_core_is_prepared(struct clk_core *clk)
 {
