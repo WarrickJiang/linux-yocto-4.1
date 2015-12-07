@@ -785,5 +785,7 @@ config INPUT_DRV2667_HAPTICS
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called drv260x-haptics.
+	  
+source "drivers/input/misc/gsensor/Kconfig"
 
 endif
