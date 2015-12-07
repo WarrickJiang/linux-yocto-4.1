@@ -272,3 +272,14 @@ config ARM_PXA2xx_CPUFREQ
 	  This add the CPUFreq driver support for Intel PXA2xx SOCs.
 
 	  If in doubt, say N.
+
+config ARM_OWL_CPUFREQ
+	tristate "Actions OWL CPUFreq support"
+	depends on ARCH_OWL
+	---help---
+	  This adds the CPUFreq driver for the Actions OWL SoC. 
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called owl_cpufreq.
