@@ -207,6 +207,14 @@ config ARMADA_THERMAL
 	  Enable this option if you want to have support for thermal management
 	  controller present in Armada 370 and Armada XP SoC.
 
+config OWL_THERMAL
+	tristate "Actions Owl thermal management"
+	depends on ARCH_OWL
+	depends on OF
+	help
+	  Enable this option if you want to have support for thermal management
+	  controller present in Actions Owl SoC.
+	  
 config TEGRA_SOCTHERM
 	tristate "Tegra SOCTHERM thermal management"
 	depends on ARCH_TEGRA

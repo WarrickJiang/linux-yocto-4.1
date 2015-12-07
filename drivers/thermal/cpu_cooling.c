@@ -76,6 +76,9 @@ static DEFINE_IDR(cpufreq_idr);
 static DEFINE_MUTEX(cooling_cpufreq_lock);
 
 static LIST_HEAD(cpufreq_dev_list);
+/*Head of the blocking notifier chain to inform about frequency clamping*/
+static BLOCKING_NOTIFIER_HEAD(cputherm_state_notifier_list);
+
 
 /**
  * get_idr - function to get a unique id.
@@ -262,6 +265,7 @@ static int cpufreq_set_cur_state(struct thermal_cooling_device *cdev,
 	struct cpufreq_cooling_device *cpufreq_device = cdev->devdata;
 	unsigned int cpu = cpumask_any(&cpufreq_device->allowed_cpus);
 	unsigned int clip_freq;
+	unsigned int event;
 
 	/* Request state should be less than max_level */
 	if (WARN_ON(state > cpufreq_device->max_level))
@@ -274,6 +278,17 @@ static int cpufreq_set_cur_state(struct thermal_cooling_device *cdev,
 	clip_freq = cpufreq_device->freq_table[state];
 	cpufreq_device->cpufreq_state = state;
 	cpufreq_device->clipped_freq = clip_freq;
+
+	if (state != 0) {
+		event = CPUFREQ_COOLING_START;
+		pr_info("[TMU] COOLING START\n");
+	} else {
+		event = CPUFREQ_COOLING_STOP;
+		pr_info("[TMU] COOLING STOP\n");
+	}
+
+	blocking_notifier_call_chain(&cputherm_state_notifier_list,
+						event, NULL);
 
 	cpufreq_update_policy(cpu);
 
@@ -479,3 +494,55 @@ void cpufreq_cooling_unregister(struct thermal_cooling_device *cdev)
 	kfree(cpufreq_dev);
 }
 EXPORT_SYMBOL_GPL(cpufreq_cooling_unregister);
+
+/**
+ * cputherm_register_notifier - Register a notifier with cpu cooling interface.
+ * @nb:	struct notifier_block * with callback info.
+ * @list: integer value for which notification is needed. possible values are
+ *	CPUFREQ_COOLING_START and CPUFREQ_COOLING_STOP.
+ *
+ * This exported function registers a driver with cpu cooling layer. The driver
+ * will be notified when any cpu cooling action is called.
+ */
+
+int cputherm_register_notifier(struct notifier_block *nb, unsigned int list)
+{
+	int ret = 0;
+	pr_info("cputherm_register_notifier list %d\n",list);
+	switch (list) {
+	case CPUFREQ_COOLING_START:
+	case CPUFREQ_COOLING_STOP:
+		ret = blocking_notifier_chain_register(
+				&cputherm_state_notifier_list, nb);
+		break;
+	default:
+		ret = -EINVAL;
+	}
+	return ret;
+}
+EXPORT_SYMBOL(cputherm_register_notifier);
+
+/**
+ * cputherm_unregister_notifier - Un-register a notifier.
+ * @nb:	struct notifier_block * with callback info.
+ * @list: integer value for which notification is needed. values possible are
+ *	CPUFREQ_COOLING_START or CPUFREQ_COOLING_STOP.
+ *
+ * This exported function un-registers a driver with cpu cooling layer.
+ */
+int cputherm_unregister_notifier(struct notifier_block *nb, unsigned int list)
+{
+	int ret = 0;
+	pr_info("cputherm_unregister_notifier list %d\n",list);
+	switch (list) {
+	case CPUFREQ_COOLING_START:
+	case CPUFREQ_COOLING_STOP:
+		ret = blocking_notifier_chain_unregister(
+				&cputherm_state_notifier_list, nb);
+		break;
+	default:
+		ret = -EINVAL;
+	}
+	return ret;
+}
+EXPORT_SYMBOL(cputherm_unregister_notifier);
