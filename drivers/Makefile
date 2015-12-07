@@ -54,7 +54,7 @@ obj-y				+= char/
 obj-$(CONFIG_IOMMU_SUPPORT)	+= iommu/
 
 # gpu/ comes after char for AGP vs DRM startup and after iommu
-obj-y				+= gpu/
+obj-m				+= gpu/
 
 obj-$(CONFIG_CONNECTOR)		+= connector/
 
