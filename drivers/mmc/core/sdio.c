@@ -1161,3 +1161,41 @@ err:
 	return err;
 }
 
+int sdio_reset_comm(struct mmc_card *card)
+{
+	struct mmc_host *host = card->host;
+	u32 ocr;
+	int err;
+
+	mmc_claim_host(host);
+
+	mmc_go_idle(host);
+	mmc_set_timing(card->host, 0);
+
+	mmc_set_clock(host, host->f_min);
+
+	err = mmc_send_io_op_cond(host, 0, &ocr);
+	if (err)
+		goto err;
+
+	host->card->ocr = mmc_select_voltage(host, ocr);
+	if (!host->card->ocr) {
+		err = -EINVAL;
+		goto err;
+	}
+	if (mmc_host_uhs(host))
+		host->card->ocr |= R4_18V_PRESENT;
+
+	err = mmc_sdio_init_card(host, host->card->ocr, card, 0);
+	if (err)
+		goto err;
+
+	mmc_release_host(host);
+	return 0;
+err:
+	printk("%s: Error resetting SDIO communications (%d)\n",
+	       mmc_hostname(host), err);
+	mmc_release_host(host);
+	return err;
+}
+EXPORT_SYMBOL(sdio_reset_comm);

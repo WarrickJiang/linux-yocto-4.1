@@ -45,6 +45,7 @@
 #include "mmc_ops.h"
 #include "sd_ops.h"
 #include "sdio_ops.h"
+#include "../host/gl520x_mmc.h"
 
 /* If the device is not responding */
 #define MMC_CORE_TIMEOUT_MS	(10 * 60 * 1000) /* 10 minute timeout */
@@ -2529,6 +2530,8 @@ void mmc_rescan(struct work_struct *work)
 	struct mmc_host *host =
 		container_of(work, struct mmc_host, detect.work);
 	int i;
+	struct gl520xmmc_host *owl_host;
+	owl_host = mmc_priv(host);
 
 	if (host->trigger_card_event && host->ops->card_event) {
 		host->ops->card_event(host);
@@ -2541,6 +2544,7 @@ void mmc_rescan(struct work_struct *work)
 	/* If there is a non-removable card registered, only scan once */
 	if ((host->caps & MMC_CAP_NONREMOVABLE) && host->rescan_entered)
 		return;
+
 	host->rescan_entered = 1;
 
 	mmc_bus_get(host);
@@ -2592,9 +2596,27 @@ void mmc_rescan(struct work_struct *work)
 	mmc_release_host(host);
 
  out:
-	if (host->caps & MMC_CAP_NEEDS_POLL)
+	if ((host->caps & MMC_CAP_NEEDS_POLL)
+#ifdef CONFIG_EARLYSUSPEND
+		&&(!(owl_host->mmc_early_suspend))
+#endif
+		){
 		mmc_schedule_delayed_work(&host->detect, HZ);
+	}
 }
+void cancel_mmc_work(struct mmc_host *host )
+{
+
+}
+EXPORT_SYMBOL(cancel_mmc_work);
+
+
+void start_mmc_work(struct mmc_host *host )
+{
+	mmc_schedule_delayed_work(&host->detect, HZ/4);
+}
+
+EXPORT_SYMBOL(start_mmc_work);
 
 void mmc_start_host(struct mmc_host *host)
 {
@@ -2715,6 +2737,19 @@ int mmc_flush_cache(struct mmc_card *card)
 	return err;
 }
 EXPORT_SYMBOL(mmc_flush_cache);
+
+int sd_mmc_reinit(struct mmc_host *host)
+{
+	int err = 0;
+	BUG_ON( !(host->bus_ops && !host->bus_dead)) ;
+	mmc_power_off(host);
+	mmc_power_up(host, host->card->ocr);
+	mmc_select_voltage(host, host->card->ocr);
+	BUG_ON(!host->bus_ops->resume);
+	err = host->bus_ops->resume(host);
+	return err;
+}
+EXPORT_SYMBOL(sd_mmc_reinit);
 
 #ifdef CONFIG_PM
 

@@ -41,10 +41,12 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/sd.h>
+#include <mach/bootdev.h>
 
 #include <asm/uaccess.h>
 
 #include "queue.h"
+#include "./../host/gl520x_mmc.h"
 
 MODULE_ALIAS("mmc:block");
 #ifdef MODULE_PARAM_PREFIX
@@ -1117,7 +1119,10 @@ static int mmc_blk_reset(struct mmc_blk_data *md, struct mmc_host *host,
 			 int type)
 {
 	int err;
+	 err= sd_mmc_reinit(host);
+	 return err;
 
+#if 0
 	if (md->reset_done & type)
 		return -EEXIST;
 
@@ -1140,6 +1145,7 @@ static int mmc_blk_reset(struct mmc_blk_data *md, struct mmc_host *host,
 		}
 	}
 	return err;
+#endif	
 }
 
 static inline void mmc_blk_reset_success(struct mmc_blk_data *md, int type)
@@ -2215,7 +2221,10 @@ static struct mmc_blk_data *mmc_blk_alloc_req(struct mmc_card *card,
 {
 	struct mmc_blk_data *md;
 	int devidx, ret;
+	int boot_dev;
+	struct gl520xmmc_host *hcd;
 
+    hcd = mmc_priv(card->host);
 	devidx = find_first_zero_bit(dev_use, max_devices);
 	if (devidx >= max_devices)
 		return ERR_PTR(-ENOSPC);
@@ -2234,8 +2243,17 @@ static struct mmc_blk_data *mmc_blk_alloc_req(struct mmc_card *card,
 	 * index anymore so we keep track of a name index.
 	 */
 	if (!subname) {
-		md->name_idx = find_first_zero_bit(name_use, max_devices);
+		//md->name_idx = find_first_zero_bit(name_use, max_devices);
+		__set_bit(0, name_use);
+		boot_dev = owl_get_boot_dev();
+		if(boot_dev > 0 && (boot_dev - OWL_BOOTDEV_SD0 == hcd->id)){
+			md->name_idx = 0;
+		} else {
+			md->name_idx = find_first_zero_bit(name_use, max_devices);
+		}
 		__set_bit(md->name_idx, name_use);
+		
+		printk("## md->name_idx: %d\n", md->name_idx);
 	} else
 		md->name_idx = ((struct mmc_blk_data *)
 				dev_to_disk(parent)->private_data)->name_idx;
@@ -2683,7 +2701,7 @@ static SIMPLE_DEV_PM_OPS(mmc_blk_pm_ops, mmc_blk_suspend, mmc_blk_resume);
 
 static struct mmc_driver mmc_driver = {
 	.drv		= {
-		.name	= "mmcblk",
+		.name	= "sd_card",
 		.pm	= &mmc_blk_pm_ops,
 	},
 	.probe		= mmc_blk_probe,
