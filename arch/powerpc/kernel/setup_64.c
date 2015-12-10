@@ -108,7 +108,12 @@ static void setup_tlb_core_data(void)
 	for_each_possible_cpu(cpu) {
 		int first = cpu_first_thread_sibling(cpu);
 
-		paca[cpu].tcd_ptr = (uintptr_t)&paca[first].tcd;
+		/* For kdump, the boot cpu may be not the primary thread */
+		if (first == cpu_first_thread_sibling(boot_cpuid) &&
+		    first != boot_cpuid)
+			paca[cpu].tcd_ptr = (uintptr_t)&paca[boot_cpuid].tcd;
+		else
+			paca[cpu].tcd_ptr = (uintptr_t)&paca[first].tcd;
 
 		/* If we have threads but no tlbsrx., use a per-core lock */
 		if (smt_enabled_at_boot >= 2 &&
