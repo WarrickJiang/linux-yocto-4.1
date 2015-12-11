@@ -4,6 +4,10 @@ config SND_SOC_ADI
 	help
 	  Audio support for various reference designs by Analog Devices.
 
+config SND_SOC_AXI_SPDIF
+	select REGMAP_MMIO
+	tristate
+
 config SND_SOC_ADI_AXI_I2S
 	tristate "AXI-I2S support"
 	depends on SND_SOC_ADI
@@ -19,3 +23,13 @@ config SND_SOC_ADI_AXI_SPDIF
 	select REGMAP_MMIO
 	help
 	  ASoC driver for the Analog Devices AXI-SPDIF softcore peripheral.
+
+config SND_SOC_ADV7511_HDMI
+	tristate "ADV7511 HDMI transmitter sound support"
+	select SND_SOC_AXI_SPDIF
+
+config SND_SOC_ZED_ADAU1761
+	tristate "ZED board sound support"
+	depends on SND_SOC_ADI
+	select SND_SOC_ADI_AXI_I2S
+	select SND_SOC_ADAU1761
