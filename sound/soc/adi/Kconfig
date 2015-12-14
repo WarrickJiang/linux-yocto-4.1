@@ -33,3 +33,4 @@ config SND_SOC_ZED_ADAU1761
 	depends on SND_SOC_ADI
 	select SND_SOC_ADI_AXI_I2S
 	select SND_SOC_ADAU1761
+	select SND_SOC_ADAU1761_I2C
