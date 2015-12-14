@@ -97,6 +97,8 @@ source "drivers/usb/usbip/Kconfig"
 
 endif
 
+source "drivers/usb/aotg/Kconfig"
+
 source "drivers/usb/musb/Kconfig"
 
 source "drivers/usb/dwc3/Kconfig"
