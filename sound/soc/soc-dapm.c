@@ -2898,6 +2898,73 @@ int snd_soc_dapm_put_volsw(struct snd_kcontrol *kcontrol,
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_put_volsw);
 
+#ifdef CONFIG_SND_SOC_ZED_ADAU1761
+/**
+ * snd_soc_dapm_get_volsw_virt - virtual dapm mixer get callback
+ * @kcontrol: mixer control
+ * @ucontrol: control element information
+ *
+ * Callback to get the value of a virtual dapm mixer control.
+ *
+ * Returns 0 for success.
+ */
+int snd_soc_dapm_get_volsw_virt(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_widget_list *wlist = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_dapm_widget *widget = wlist->widgets[0];
+
+	if(widget)
+		ucontrol->value.integer.value[0] = 0x1;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dapm_get_volsw_virt);
+
+/**
+ * snd_soc_dapm_put_volsw_virt - virtual dapm mixer set callback
+ * @kcontrol: mixer control
+ * @ucontrol: control element information
+ *
+ * Callback to set the value of a virutal dapm mixer control.
+ *
+ * Returns 0 for success.
+ */
+int snd_soc_dapm_put_volsw_virt(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_widget_list *wlist = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_dapm(kcontrol);
+	struct snd_soc_card *card = dapm->card;
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	unsigned int mask = (1 << fls(mc->max)) - 1;
+	unsigned int shift = mc->shift;
+	unsigned int val, connect;
+	int wi;
+
+	val = ucontrol->value.integer.value[0] & mask;
+
+	mask = mask << shift;
+	val = val << shift;
+
+	if (val)
+		connect = 1;
+	else
+		connect = 0;
+
+	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
+
+	for (wi = 0; wi < wlist->num_widgets; wi++) {
+			soc_dapm_mixer_update_power(card, kcontrol, connect);
+	}
+
+	mutex_unlock(&card->dapm_mutex);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dapm_put_volsw_virt);
+#endif
+
 /**
  * snd_soc_dapm_get_enum_double - dapm enumerated double mixer get callback
  * @kcontrol: mixer control

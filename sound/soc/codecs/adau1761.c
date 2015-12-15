@@ -64,6 +64,18 @@
 
 #define ADAU1761_FIRMWARE "adau1761.bin"
 
+int snd_soc_dapm_put_volsw_virt(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol);
+int snd_soc_dapm_get_volsw_virt(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol);
+
+#define SOC_DAPM_SINGLE_VIRT_ZYNQ(xname, shift, max) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
+	.info = snd_soc_info_volsw, \
+	.get = snd_soc_dapm_get_volsw_virt, \
+	.put = snd_soc_dapm_put_volsw_virt, \
+	.private_value =  SOC_SINGLE_VALUE(SND_SOC_NOPM, shift, max, 0, 0) }
+
 static const struct reg_default adau1761_reg_defaults[] = {
 	{ ADAU1761_DEJITTER,			0x03 },
 	{ ADAU1761_DIGMIC_JACKDETECT,		0x00 },
@@ -203,10 +215,8 @@ static const struct snd_kcontrol_new adau1761_mono_controls[] = {
 };
 
 static const struct snd_kcontrol_new adau1761_left_mixer_controls[] = {
-	SOC_DAPM_SINGLE_AUTODISABLE("Left DAC Switch",
-		ADAU1761_PLAY_MIXER_LEFT0, 5, 1, 0),
-	SOC_DAPM_SINGLE_AUTODISABLE("Right DAC Switch",
-		ADAU1761_PLAY_MIXER_LEFT0, 6, 1, 0),
+	SOC_DAPM_SINGLE_VIRT_ZYNQ("Left DAC Switch", 0, 1),
+	SOC_DAPM_SINGLE_VIRT_ZYNQ("Right DAC Switch", 0, 1),
 	SOC_DAPM_SINGLE_TLV("Aux Bypass Volume",
 		ADAU1761_PLAY_MIXER_LEFT0, 1, 8, 0, adau1761_sidetone_tlv),
 	SOC_DAPM_SINGLE_TLV("Right Bypass Volume",
@@ -216,10 +226,8 @@ static const struct snd_kcontrol_new adau1761_left_mixer_controls[] = {
 };
 
 static const struct snd_kcontrol_new adau1761_right_mixer_controls[] = {
-	SOC_DAPM_SINGLE_AUTODISABLE("Left DAC Switch",
-		ADAU1761_PLAY_MIXER_RIGHT0, 5, 1, 0),
-	SOC_DAPM_SINGLE_AUTODISABLE("Right DAC Switch",
-		ADAU1761_PLAY_MIXER_RIGHT0, 6, 1, 0),
+	SOC_DAPM_SINGLE_VIRT_ZYNQ("Left DAC Switch", 0, 1),
+	SOC_DAPM_SINGLE_VIRT_ZYNQ("Right DAC Switch", 0, 1),
 	SOC_DAPM_SINGLE_TLV("Aux Bypass Volume",
 		ADAU1761_PLAY_MIXER_RIGHT0, 1, 8, 0, adau1761_sidetone_tlv),
 	SOC_DAPM_SINGLE_TLV("Right Bypass Volume",
