@@ -21,6 +21,7 @@
 #include <asm/mach/map.h>
 #include <linux/delay.h>
 #include <asm/smp_plat.h>
+#include <linux/platform_data/dcfg-ls1021a.h>
 
 #include "common.h"
 #include "hardware.h"
@@ -31,6 +32,7 @@
 #define	SCFG_SPARECR4		0x50C
 
 #define	DCFG_CCSR_BRR		0x0E4
+#define	DCFG_CCSR_SVR		0x0A4
 #define	DCFG_CCSR_SCRATCHRW1	0x200
 
 #define	DCSR_RCPM2_DEBUG1	0x400
@@ -74,6 +76,14 @@ static int imx_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	imx_enable_cpu(cpu, true);
 	return 0;
 }
+
+#ifdef CONFIG_SOC_LS1021A
+#define  LS1021A_SOC_REV1 0x10
+int is_ls1021a_rev1(void)
+{
+	return LS1021A_SOC_REV1 == (ioread32be(dcfg_base + DCFG_CCSR_SVR) & 0x1f);
+}
+#endif
 
 /*
  * Initialise the CPU possible map early - this describes the CPUs

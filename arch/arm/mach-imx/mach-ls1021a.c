@@ -13,6 +13,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/of_platform.h>
 #include <asm/mach/arch.h>
+#include <linux/platform_data/dcfg-ls1021a.h>
 
 #include "common.h"
 
@@ -38,7 +39,8 @@ static struct notifier_block ls1021a_platform_nb = {
 
 static void __init ls1021a_init_machine(void)
 {
-	bus_register_notifier(&platform_bus_type, &ls1021a_platform_nb);
+	if (!is_ls1021a_rev1())
+		bus_register_notifier(&platform_bus_type, &ls1021a_platform_nb);
 
 	mxc_arch_reset_init_dt();
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
