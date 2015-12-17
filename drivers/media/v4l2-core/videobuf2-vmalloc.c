@@ -60,6 +60,7 @@ static void *vb2_vmalloc_alloc(void *alloc_ctx, unsigned long size,
 	atomic_inc(&buf->refcount);
 	return buf;
 }
+EXPORT_SYMBOL_GPL(vb2_vmalloc_alloc);
 
 static void vb2_vmalloc_put(void *buf_priv)
 {
@@ -70,6 +71,7 @@ static void vb2_vmalloc_put(void *buf_priv)
 		kfree(buf);
 	}
 }
+EXPORT_SYMBOL_GPL(vb2_vmalloc_put);
 
 static void *vb2_vmalloc_get_userptr(void *alloc_ctx, unsigned long vaddr,
 				     unsigned long size,
@@ -210,6 +212,7 @@ static int vb2_vmalloc_mmap(void *buf_priv, struct vm_area_struct *vma)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(vb2_vmalloc_mmap);
 
 #ifdef CONFIG_HAS_DMA
 /*********************************************/
