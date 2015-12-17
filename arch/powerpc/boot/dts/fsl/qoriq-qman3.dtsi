@@ -37,5 +37,4 @@ qman: qman@318000 {
 	reg = <0x318000 0x2000>;
 	interrupts = <16 2 1 3>;
 	fsl,qman-portals = <&qportals>;
-	memory-region = <&qman_fqd &qman_pfdr>;
 };
