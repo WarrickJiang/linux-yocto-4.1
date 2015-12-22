@@ -43,6 +43,7 @@
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/of_net.h>
+#include <linux/of_mdio.h>
 #include <linux/device.h>
 #include <linux/phy.h>
 #include <linux/io.h>
@@ -154,6 +155,7 @@ static int __cold mac_probe(struct platform_device *_of_dev)
 	int			nph;
 	u32			cell_index;
 	const struct of_device_id *match;
+	int ret;
 
 	dev = &_of_dev->dev;
 	mac_node = dev->of_node;
@@ -353,18 +355,14 @@ static int __cold mac_probe(struct platform_device *_of_dev)
 
 	/* Get the rest of the PHY information */
 	mac_dev->phy_node = of_parse_phandle(mac_node, "phy-handle", 0);
-	if (mac_dev->phy_node == NULL) {
-		u32 phy_id;
-
-		_errno = of_property_read_u32(mac_node, "fixed-link", &phy_id);
-		if (_errno) {
+	if (!mac_dev->phy_node && of_phy_is_fixed_link(mac_node)) {
+		ret = of_phy_register_fixed_link(mac_node);
+		if (ret < 0) {
 			dev_err(dev, "No PHY (or fixed link) found\n");
 			_errno = -EINVAL;
 			goto _return_dev_set_drvdata;
 		}
-
-		sprintf(mac_dev->fixed_bus_id, PHY_ID_FMT, "fixed-0",
-			phy_id);
+		mac_dev->phy_node = of_node_get(mac_node);
 	}
 
 	_errno = mac_dev->init(mac_dev);
