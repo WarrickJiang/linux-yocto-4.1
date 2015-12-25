@@ -85,8 +85,6 @@ struct fsl_espi_transfer {
 #define SPCOM_TRANLEN(x)	((x) << 0)
 #define	SPCOM_TRANLEN_MAX	0xFFFF	/* Max transaction length */
 
-static int hw_disable_espi(int disable);
-
 static void fsl_espi_change_mode(struct spi_device *spi)
 {
 	struct mpc8xxx_spi *mspi = spi_master_get_devdata(spi->master);
@@ -624,8 +622,6 @@ static int fsl_espi_suspend(struct spi_master *master)
 	regval &= ~SPMODE_ENABLE;
 	mpc8xxx_spi_write_reg(&reg_base->mode, regval);
 
-	hw_disable_espi(true);
-
 	return 0;
 }
 
@@ -857,7 +853,11 @@ static int of_fsl_espi_suspend(struct device *dev)
 		return ret;
 	}
 
-	return fsl_espi_suspend(master);
+	ret = fsl_espi_suspend(master);
+
+	hw_disable_espi(true);
+
+	return ret;
 }
 
 static int of_fsl_espi_resume(struct device *dev)
