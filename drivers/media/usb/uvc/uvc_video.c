@@ -1009,7 +1009,6 @@ static int uvc_video_decode_start(struct uvc_streaming *stream,
 			  "set).\n");
 		/*added for one frame split to two parts, or one frame with err data problems, ActionsCode(author:liyuan, change_code)*/	  
 		buf->error = UVC_BUF_ERR_ISOFRAM_ERR;
-		uvc_trace(UVC_TRACE_FRAME_ERR, "## USB isochronous frame err .\n");
 	}
 
 	/* Synchronize to the input stream by waiting for the FID bit to be
@@ -1067,7 +1066,6 @@ static int uvc_video_decode_start(struct uvc_streaming *stream,
 		if((buf->bytesused != buf->length) &&
 		   !(stream->cur_format->flags & UVC_FMT_FLAG_COMPRESSED)){
 			buf->error = UVC_BUF_ERR_NOTFULL;
-			uvc_trace(UVC_TRACE_FRAME_ERR, "## Frame complete (not full).\n");
 		}
 		return -EAGAIN;
 	}
@@ -1100,7 +1098,6 @@ static void uvc_video_decode_data(struct uvc_streaming *stream,
 
 	/* Complete the current frame if the buffer size was exceeded. */
 	if (len > maxlen) {
-		uvc_trace(UVC_TRACE_FRAME_ERR, "## Frame complete (overflow).\n");
 		buf->state = UVC_BUF_STATE_READY;
 		/*added for one frame split to two parts, or one frame with err data problems, ActionsCode(author:liyuan, change_code)*/
 		buf->error = UVC_BUF_ERR_OVERFLOW;
@@ -1174,7 +1171,6 @@ static void uvc_video_validate_buffer(const struct uvc_streaming *stream,
 	    !(stream->cur_format->flags & UVC_FMT_FLAG_COMPRESSED)) {
 		/*added for one frame split to two parts, or one frame with err data problems, ActionsCode(author:liyuan, change_code)*/  
 		buf->error = UVC_BUF_ERR_NOTFULL;
-		uvc_trace(UVC_TRACE_FRAME_ERR, "## Frame complete (not full).\n");
 	}
 }
 
@@ -1195,7 +1191,6 @@ static void uvc_video_decode_isoc(struct urb *urb, struct uvc_streaming *stream,
 			if (buf != NULL){
 			        /*added for one frame split to two parts, or one frame with err data problems, ActionsCode(author:liyuan, change_code)*/
 				buf->error = UVC_BUF_ERR_ISOFRAM_LOST;
-				uvc_trace(UVC_TRACE_FRAME_ERR, "## USB isochronous frame lost .\n");
 			}
 			continue;
 		}
