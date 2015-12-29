@@ -54,6 +54,7 @@ static ssize_t store_mirror_to_hdmi(struct device *dev,
 	struct owlfb_info *ofbi = FB2OFB(fbi);
 	struct owlfb_device *fbdev = ofbi->fbdev;
 	bool mirror_to_hdmi;
+	int r;
 	int vid = 1;
 	
 	struct owl_overlay_manager *external_mgr = owl_dss_get_overlay_manager(OWL_DSS_OVL_MGR_EXTERNAL);
@@ -67,6 +68,10 @@ static ssize_t store_mirror_to_hdmi(struct device *dev,
 	r = strtobool(buf, &mirror_to_hdmi);
 	if (r)
 		return r;
+	if(ofbi->id != 0)
+	{
+		return r;
+	}
 
 	if (!lock_fb_info(fbi))
 		return -ENODEV;
