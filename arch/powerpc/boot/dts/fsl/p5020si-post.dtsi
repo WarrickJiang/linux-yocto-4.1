@@ -247,9 +247,7 @@
 
 /include/ "qoriq-bman1-portals.dtsi"
 
-&qportals {
 /include/ "qoriq-qman1-portals.dtsi"
-};
 
 &soc {
 	#address-cells = <1>;
