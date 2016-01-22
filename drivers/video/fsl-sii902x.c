@@ -27,7 +27,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
-#include "edid.h"
+#include "fbdev/edid.h"
 
 #define SII902X_INPUT_BUS_FMT	0x08
 #define SII902X_TPI_AVI_INPUT_FMT	0x09

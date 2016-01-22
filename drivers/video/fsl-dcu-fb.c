@@ -1163,7 +1163,7 @@ static int fsl_dcu_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int fsl_dcu_runtime_suspend(struct device *dev)
 {
 	struct dcu_fb_data *dcufb = dev_get_drvdata(dev);
