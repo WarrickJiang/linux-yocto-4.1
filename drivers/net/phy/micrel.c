@@ -781,7 +781,20 @@ static struct phy_driver ksphy_driver[] = {
 	.driver		= { .owner = THIS_MODULE, },
 } };
 
-module_phy_driver(ksphy_driver);
+static int __init ksphy_init(void)
+{
+	return phy_drivers_register(ksphy_driver,
+		ARRAY_SIZE(ksphy_driver));
+}
+
+static void __exit ksphy_exit(void)
+{
+	phy_drivers_unregister(ksphy_driver,
+		ARRAY_SIZE(ksphy_driver));
+}
+
+module_init(ksphy_init);
+module_exit(ksphy_exit);
 
 MODULE_DESCRIPTION("Micrel PHY driver");
 MODULE_AUTHOR("David J. Choi");

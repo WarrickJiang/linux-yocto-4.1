@@ -667,7 +667,20 @@ static struct phy_driver broadcom_drivers[] = {
 	.driver		= { .owner = THIS_MODULE },
 } };
 
-module_phy_driver(broadcom_drivers);
+static int __init broadcom_init(void)
+{
+	return phy_drivers_register(broadcom_drivers,
+		ARRAY_SIZE(broadcom_drivers));
+}
+
+static void __exit broadcom_exit(void)
+{
+	phy_drivers_unregister(broadcom_drivers,
+		ARRAY_SIZE(broadcom_drivers));
+}
+
+module_init(broadcom_init);
+module_exit(broadcom_exit);
 
 static struct mdio_device_id __maybe_unused broadcom_tbl[] = {
 	{ PHY_ID_BCM5411, 0xfffffff0 },
