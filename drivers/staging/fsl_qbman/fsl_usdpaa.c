@@ -505,7 +505,27 @@ static bool check_portal_channel(void *ctx, u32 channel)
 	return false;
 }
 
+#ifdef CONFIG_PREEMPT_RT_FULL
+static void usdpaa_migrate_disable(void)
+{
+	migrate_disable();
+}
 
+static void usdpaa_migrate_enable(void)
+{
+	migrate_enable();
+}
+#else
+static void usdpaa_migrate_disable(void)
+{
+	preempt_disable();
+}
+
+static void usdpaa_migrate_enable(void)
+{
+	preempt_enable();
+}
+#endif
 
 static int usdpaa_release(struct inode *inode, struct file *filp)
 {
@@ -524,7 +544,7 @@ static int usdpaa_release(struct inode *inode, struct file *filp)
 
 	/* Ensure the release operation cannot be migrated to another
 	   CPU as CPU specific variables may be needed during cleanup */
-	migrate_disable();
+	usdpaa_migrate_disable();
 
 	/* The following logic is used to recover resources that were not
 	   correctly released by the process that is closing the FD.
@@ -561,13 +581,13 @@ static int usdpaa_release(struct inode *inode, struct file *filp)
 		qm_alloced_portal = qm_get_unused_portal();
 		if (!qm_alloced_portal) {
 			pr_crit("No QMan portal avalaible for cleanup\n");
-			migrate_enable();
+			usdpaa_migrate_enable();
 			return -1;
 		}
 		qm_cleanup_portal = kmalloc(sizeof(struct qm_portal),
 					    GFP_KERNEL);
 		if (!qm_cleanup_portal) {
-			migrate_enable();
+			usdpaa_migrate_enable();
 			return -ENOMEM;
 		}
 		init_qm_portal(qm_alloced_portal, qm_cleanup_portal);
@@ -578,13 +598,13 @@ static int usdpaa_release(struct inode *inode, struct file *filp)
 		bm_alloced_portal = bm_get_unused_portal();
 		if (!bm_alloced_portal) {
 			pr_crit("No BMan portal avalaible for cleanup\n");
-			migrate_enable();
+			usdpaa_migrate_enable();
 			return -1;
 		}
 		bm_cleanup_portal = kmalloc(sizeof(struct bm_portal),
 					    GFP_KERNEL);
 		if (!bm_cleanup_portal) {
-			migrate_enable();
+			usdpaa_migrate_enable();
 			return -ENOMEM;
 		}
 		init_bm_portal(bm_alloced_portal, bm_cleanup_portal);
@@ -662,7 +682,7 @@ static int usdpaa_release(struct inode *inode, struct file *filp)
 	}
 
 	kfree(ctx);
-	migrate_enable();
+	usdpaa_migrate_enable();
 	return 0;
 }
 
