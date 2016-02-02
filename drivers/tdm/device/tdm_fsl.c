@@ -199,87 +199,6 @@ static void rx_tcd_init(struct tdm_priv *priv)
 	    ALIGN_SIZE(physaddr, ALIGNED_32_BYTES);
 }
 
-static irqreturn_t tdm_err_isr(int irq, void *p)
-{
-	int ret = IRQ_NONE;
-	u32 status, mask, val;
-	u32 dmac_err;
-	struct tdm_priv *priv;
-	u32 ch;
-	priv = p;
-
-	if (!priv) {
-		pr_err("%s: Invalid handle\n", __func__);
-		return -EINVAL;
-	}
-
-	/* transmit errors */
-	status = in_be32(&priv->tdm_regs->ter);
-	mask = in_be32(&priv->tdm_regs->tier);
-	val = status & mask;
-	out_be32(&priv->tdm_regs->ter, val);
-
-	/* Transmit under Run error */
-	if (val & TIER_TUEE)
-		dev_err(priv->device, "TDM::Transmit Under Run error\n");
-
-	/* Transmit Sync Error */
-	if (val & TIER_TSEEE)
-		dev_err(priv->device, "TDM::Transmit Sync error\n");
-
-	if (val)
-		ret = IRQ_HANDLED;
-
-	/* receive errors */
-	status = in_be32(&priv->tdm_regs->rer);
-	mask = in_be32(&priv->tdm_regs->rier);
-	val = status & mask;
-	out_be32(&priv->tdm_regs->rer, val);
-
-	/* Receiver Over run error */
-	if (val & RIER_ROEE)
-		dev_err(priv->device, "TDM::Receive  Over Run error\n");
-
-	/* Receive Sync Error  */
-	if (val & RIER_RSEEE)
-		dev_err(priv->device, "TDM::Receive Sync error\n");
-
-	if (val)
-		ret = IRQ_HANDLED;
-
-	/* Handling of DMA Errors */
-	dmac_err = in_be32(&priv->dmac_regs->dmaes);
-	if (!(dmac_err & DMAES_VLD))
-		return ret;
-
-	ch = DMAES_ERRCHN(dmac_err);
-
-	if (dmac_err & DMAES_CPE)
-		dev_err(priv->device, "TDM::Channel priority error\n");
-	if (dmac_err & DMAES_GPE)
-		dev_err(priv->device, "TDM::Group priority error\n");
-	if (dmac_err & DMAES_SAE)
-		dev_err(priv->device, "TDM::Source address error\n");
-	if (dmac_err & DMAES_SOE)
-		dev_err(priv->device, "TDM::Source offset error\n");
-	if (dmac_err & DMAES_DAE)
-		dev_err(priv->device, "TDM::Destination address error\n");
-	if (dmac_err & DMAES_DOE)
-		dev_err(priv->device, "TDM::Destination offset error\n");
-	if (dmac_err & DMAES_NCE)
-		dev_err(priv->device, "TDM::Nbytes citer error\n");
-	if (dmac_err & DMAES_SGE)
-		dev_err(priv->device, "TDM::Scatter gather error\n");
-	if (dmac_err & DMAES_DBE)
-		dev_err(priv->device, "TDM::Destination bus error\n");
-	if (dmac_err & DMAES_SBE)
-		dev_err(priv->device, "TDM::Source bus error\n");
-
-	/* Clear the error */
-	out_8(&priv->dmac_regs->dmacerr, (u8)ch);
-	return IRQ_HANDLED;
-}
-
 static irqreturn_t dmac_done_isr(int irq, void *p)
 {
 	u32 ch;
@@ -415,7 +334,6 @@ static int tdm_fsl_reg_init(struct tdm_priv *priv)
 {
 	int i;
 	int ch_size_type;
-	phys_addr_t base = get_immrbase();
 	struct tdm_adapter *adap;
 	if (!priv) {
 		pr_err("%s: Invalid handle\n", __func__);

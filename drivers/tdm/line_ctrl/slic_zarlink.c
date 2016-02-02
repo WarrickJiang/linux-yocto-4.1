@@ -569,8 +569,6 @@ static int slic_init_configure(unsigned char *device_handle,
 void configure_spi_pdata(struct spi_device *spi)
 {
 	struct slic_platform_data *spi_slic_pdata;
-	const u32 *iprop;
-	struct device_node *np = spi->dev.of_node;
 	static int num_slic;
 
 	spi_slic_pdata = kzalloc(sizeof(*spi_slic_pdata), GFP_KERNEL);

@@ -66,12 +66,13 @@ static int use_latest_tdm_data = 1;
 static void tdm_data_tasklet_fn(unsigned long);
 
 /* tries to match client driver with the adapter */
-static int tdm_device_match(struct tdm_driver *driver, struct tdm_adapter *adap)
+static long tdm_device_match(struct tdm_driver *driver,
+				struct tdm_adapter *adap)
 {
 	/* match on an id table if there is one */
 	if (driver->id_table && driver->id_table->name[0]) {
 		if (!(strcmp(driver->id_table->name, adap->name)))
-			return (int)driver->id_table;
+			return (long)driver->id_table;
 	}
 	return TDM_E_OK;
 }
