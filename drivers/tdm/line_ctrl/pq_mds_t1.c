@@ -31,6 +31,7 @@
 #include <linux/param.h>
 #include <linux/delay.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 
 #include <linux/platform_device.h>
 #include <linux/init.h>

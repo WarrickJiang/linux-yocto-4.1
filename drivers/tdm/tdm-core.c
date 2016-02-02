@@ -201,11 +201,11 @@ int tdm_add_adapter(struct tdm_adapter *adapter)
 	}
 
 retry:
-	if (idr_pre_get(&tdm_adapter_idr, GFP_KERNEL) == 0)
+	if (__idr_pre_get(&tdm_adapter_idr, GFP_KERNEL) == 0)
 		return -ENOMEM;
 
 	mutex_lock(&tdm_core_lock);
-	res = idr_get_new(&tdm_adapter_idr, adapter, &id);
+	res = __idr_get_new_above(&tdm_adapter_idr, adapter, 0, &id);
 	mutex_unlock(&tdm_core_lock);
 
 	if (res < 0) {

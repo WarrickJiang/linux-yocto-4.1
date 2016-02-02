@@ -37,6 +37,8 @@
 #include <linux/dma-mapping.h>
 #include <linux/spinlock.h>
 #include <linux/delay.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_soc.h>
 #include <linux/slab.h>
