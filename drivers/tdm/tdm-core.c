@@ -195,18 +195,15 @@ static int tdm_register_adapter(struct tdm_adapter *adap)
  */
 int tdm_add_adapter(struct tdm_adapter *adapter)
 {
-	int id, res = TDM_E_OK;
+	int res = TDM_E_OK;
 	if (!adapter) {
 		pr_err("%s:Invalid handle\n", __func__);
 		return -EINVAL;
 	}
 
 retry:
-	if (__idr_pre_get(&tdm_adapter_idr, GFP_KERNEL) == 0)
-		return -ENOMEM;
-
 	mutex_lock(&tdm_core_lock);
-	res = __idr_get_new_above(&tdm_adapter_idr, adapter, 0, &id);
+	res = idr_alloc(&tdm_adapter_idr, adapter, 0, 0, GFP_KERNEL);
 	mutex_unlock(&tdm_core_lock);
 
 	if (res < 0) {
@@ -215,7 +212,7 @@ retry:
 		return res;
 	}
 
-	adapter->id = id;
+	adapter->id = res;
 	return tdm_register_adapter(adapter);
 }
 EXPORT_SYMBOL(tdm_add_adapter);
