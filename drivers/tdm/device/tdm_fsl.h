@@ -392,7 +392,8 @@ static inline int ALIGNABLE_SIZE(u32 size, u32 alignment)
 /* Align a given address */
 static inline void *ALIGN_ADDRESS(void *address, u32 alignment)
 {
-	return (void *)(((u32) address + alignment - 1) & (~(alignment - 1)));
+	return (void *)(((unsigned long) address + (unsigned long)alignment - 1)
+		& (~((unsigned long)alignment - 1)));
 }
 
 /* Size of the buffer */
