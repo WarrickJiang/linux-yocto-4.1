@@ -4,6 +4,7 @@
 
 menuconfig TDM
 	tristate "TDM support"
+	depends on QUICC_ENGINE
 	---help---
 	  More information is contained in the directory <file:Documentation/tdm/>,
 	  especially in the file called "summary" there.
