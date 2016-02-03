@@ -274,7 +274,7 @@ config TAU_AVERAGE
 
 config QUICC_ENGINE
 	bool "Freescale QUICC Engine (QE) Support"
-	depends on FSL_SOC && PPC32
+	depends on FSL_SOC
 	select PPC_LIB_RHEAP
 	select CRC32
 	help
