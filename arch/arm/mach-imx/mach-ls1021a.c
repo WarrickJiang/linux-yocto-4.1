@@ -14,6 +14,8 @@
 #include <linux/of_platform.h>
 #include <asm/mach/arch.h>
 #include <linux/platform_data/dcfg-ls1021a.h>
+#include <linux/phy.h>
+#include <linux/phy_fixed.h>
 
 #include "common.h"
 
