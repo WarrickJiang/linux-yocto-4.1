@@ -94,27 +94,40 @@ struct gsb_buffer {
 	};
 } __packed;
 
-static int acpi_i2c_add_resource(struct acpi_resource *ares, void *data)
+struct acpi_i2c_lookup {
+	struct i2c_board_info *info;
+	acpi_handle adapter_handle;
+	acpi_handle device_handle;
+};
+
+static int acpi_i2c_find_address(struct acpi_resource *ares, void *data)
 {
-	struct i2c_board_info *info = data;
+	struct acpi_i2c_lookup *lookup = data;
+	struct i2c_board_info *info = lookup->info;
+	struct acpi_resource_i2c_serialbus *sb;
+	acpi_handle adapter_handle;
+	acpi_status status;
 
-	if (ares->type == ACPI_RESOURCE_TYPE_SERIAL_BUS) {
-		struct acpi_resource_i2c_serialbus *sb;
+	if (info->addr || ares->type != ACPI_RESOURCE_TYPE_SERIAL_BUS)
+		return 1;
 
-		sb = &ares->data.i2c_serial_bus;
-		if (!info->addr && sb->type == ACPI_RESOURCE_SERIAL_TYPE_I2C) {
-			info->addr = sb->slave_address;
-			if (sb->access_mode == ACPI_I2C_10BIT_MODE)
-				info->flags |= I2C_CLIENT_TEN;
-		}
-	} else if (info->irq < 0) {
-		struct resource r;
+	sb = &ares->data.i2c_serial_bus;
+	if (sb->type != ACPI_RESOURCE_SERIAL_TYPE_I2C)
+		return 1;
 
-		if (acpi_dev_resource_interrupt(ares, 0, &r))
-			info->irq = r.start;
+	/*
+	 * Extract the ResourceSource and make sure that the handle matches
+	 * with the I2C adapter handle.
+	 */
+	status = acpi_get_handle(lookup->device_handle,
+				 sb->resource_source.string_ptr,
+				 &adapter_handle);
+	if (ACPI_SUCCESS(status) && adapter_handle == lookup->adapter_handle) {
+		info->addr = sb->slave_address;
+		if (sb->access_mode == ACPI_I2C_10BIT_MODE)
+			info->flags |= I2C_CLIENT_TEN;
 	}
 
-	/* Tell the ACPI core to skip this resource */
 	return 1;
 }
 
@@ -123,6 +136,8 @@ static acpi_status acpi_i2c_add_device(acpi_handle handle, u32 level,
 {
 	struct i2c_adapter *adapter = data;
 	struct list_head resource_list;
+	struct acpi_i2c_lookup lookup;
+	struct resource_entry *entry;
 	struct i2c_board_info info;
 	struct acpi_device *adev;
 	int ret;
@@ -134,15 +149,37 @@ static acpi_status acpi_i2c_add_device(acpi_handle handle, u32 level,
 
 	memset(&info, 0, sizeof(info));
 	info.fwnode = acpi_fwnode_handle(adev);
-	info.irq = -1;
 
+	memset(&lookup, 0, sizeof(lookup));
+	lookup.adapter_handle = ACPI_HANDLE(adapter->dev.parent);
+	lookup.device_handle = handle;
+	lookup.info = &info;
+
+	/*
+	 * Look up for I2cSerialBus resource with ResourceSource that
+	 * matches with this adapter.
+	 */
 	INIT_LIST_HEAD(&resource_list);
 	ret = acpi_dev_get_resources(adev, &resource_list,
-				     acpi_i2c_add_resource, &info);
+				     acpi_i2c_find_address, &lookup);
 	acpi_dev_free_resource_list(&resource_list);
 
 	if (ret < 0 || !info.addr)
 		return AE_OK;
+
+	/* Then fill IRQ number if any */
+	ret = acpi_dev_get_resources(adev, &resource_list, NULL, NULL);
+	if (ret < 0)
+		return AE_OK;
+
+	resource_list_for_each_entry(entry, &resource_list) {
+		if (resource_type(entry->res) == IORESOURCE_IRQ) {
+			info.irq = entry->res->start;
+			break;
+		}
+	}
+
+	acpi_dev_free_resource_list(&resource_list);
 
 	adev->power.flags.ignore_parent = true;
 	strlcpy(info.type, dev_name(&adev->dev), sizeof(info.type));
@@ -156,6 +193,8 @@ static acpi_status acpi_i2c_add_device(acpi_handle handle, u32 level,
 	return AE_OK;
 }
 
+#define ACPI_I2C_MAX_SCAN_DEPTH 32
+
 /**
  * acpi_i2c_register_devices - enumerate I2C slave devices behind adapter
  * @adap: pointer to adapter
@@ -166,17 +205,13 @@ static acpi_status acpi_i2c_add_device(acpi_handle handle, u32 level,
  */
 static void acpi_i2c_register_devices(struct i2c_adapter *adap)
 {
-	acpi_handle handle;
 	acpi_status status;
 
-	if (!adap->dev.parent)
+	if (!adap->dev.parent || !has_acpi_companion(adap->dev.parent))
 		return;
 
-	handle = ACPI_HANDLE(adap->dev.parent);
-	if (!handle)
-		return;
-
-	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, 1,
+	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
+				     ACPI_I2C_MAX_SCAN_DEPTH,
 				     acpi_i2c_add_device, NULL,
 				     adap, NULL);
 	if (ACPI_FAILURE(status))
@@ -258,7 +293,7 @@ acpi_i2c_space_handler(u32 function, acpi_physical_address command,
 	struct acpi_connection_info *info = &data->info;
 	struct acpi_resource_i2c_serialbus *sb;
 	struct i2c_adapter *adapter = data->adapter;
-	struct i2c_client client;
+	struct i2c_client *client;
 	struct acpi_resource *ares;
 	u32 accessor_type = function >> 16;
 	u8 action = function & ACPI_IO_MASK;
@@ -268,6 +303,12 @@ acpi_i2c_space_handler(u32 function, acpi_physical_address command,
 	ret = acpi_buffer_to_resource(info->connection, info->length, &ares);
 	if (ACPI_FAILURE(ret))
 		return ret;
+
+	client = kzalloc(sizeof(*client), GFP_KERNEL);
+	if (!client) {
+		ret = AE_NO_MEMORY;
+		goto err;
+	}
 
 	if (!value64 || ares->type != ACPI_RESOURCE_TYPE_SERIAL_BUS) {
 		ret = AE_BAD_PARAMETER;
@@ -280,75 +321,73 @@ acpi_i2c_space_handler(u32 function, acpi_physical_address command,
 		goto err;
 	}
 
-	memset(&client, 0, sizeof(client));
-	client.adapter = adapter;
-	client.addr = sb->slave_address;
-	client.flags = 0;
+	client->adapter = adapter;
+	client->addr = sb->slave_address;
 
 	if (sb->access_mode == ACPI_I2C_10BIT_MODE)
-		client.flags |= I2C_CLIENT_TEN;
+		client->flags |= I2C_CLIENT_TEN;
 
 	switch (accessor_type) {
 	case ACPI_GSB_ACCESS_ATTRIB_SEND_RCV:
 		if (action == ACPI_READ) {
-			status = i2c_smbus_read_byte(&client);
+			status = i2c_smbus_read_byte(client);
 			if (status >= 0) {
 				gsb->bdata = status;
 				status = 0;
 			}
 		} else {
-			status = i2c_smbus_write_byte(&client, gsb->bdata);
+			status = i2c_smbus_write_byte(client, gsb->bdata);
 		}
 		break;
 
 	case ACPI_GSB_ACCESS_ATTRIB_BYTE:
 		if (action == ACPI_READ) {
-			status = i2c_smbus_read_byte_data(&client, command);
+			status = i2c_smbus_read_byte_data(client, command);
 			if (status >= 0) {
 				gsb->bdata = status;
 				status = 0;
 			}
 		} else {
-			status = i2c_smbus_write_byte_data(&client, command,
+			status = i2c_smbus_write_byte_data(client, command,
 					gsb->bdata);
 		}
 		break;
 
 	case ACPI_GSB_ACCESS_ATTRIB_WORD:
 		if (action == ACPI_READ) {
-			status = i2c_smbus_read_word_data(&client, command);
+			status = i2c_smbus_read_word_data(client, command);
 			if (status >= 0) {
 				gsb->wdata = status;
 				status = 0;
 			}
 		} else {
-			status = i2c_smbus_write_word_data(&client, command,
+			status = i2c_smbus_write_word_data(client, command,
 					gsb->wdata);
 		}
 		break;
 
 	case ACPI_GSB_ACCESS_ATTRIB_BLOCK:
 		if (action == ACPI_READ) {
-			status = i2c_smbus_read_block_data(&client, command,
+			status = i2c_smbus_read_block_data(client, command,
 					gsb->data);
 			if (status >= 0) {
 				gsb->len = status;
 				status = 0;
 			}
 		} else {
-			status = i2c_smbus_write_block_data(&client, command,
+			status = i2c_smbus_write_block_data(client, command,
 					gsb->len, gsb->data);
 		}
 		break;
 
 	case ACPI_GSB_ACCESS_ATTRIB_MULTIBYTE:
 		if (action == ACPI_READ) {
-			status = acpi_gsb_i2c_read_bytes(&client, command,
+			status = acpi_gsb_i2c_read_bytes(client, command,
 					gsb->data, info->access_length);
 			if (status > 0)
 				status = 0;
 		} else {
-			status = acpi_gsb_i2c_write_bytes(&client, command,
+			status = acpi_gsb_i2c_write_bytes(client, command,
 					gsb->data, info->access_length);
 		}
 		break;
@@ -362,6 +401,7 @@ acpi_i2c_space_handler(u32 function, acpi_physical_address command,
 	gsb->status = status;
 
  err:
+	kfree(client);
 	ACPI_FREE(ares);
 	return ret;
 }
@@ -563,6 +603,9 @@ static int i2c_generic_recovery(struct i2c_adapter *adap)
 	if (bri->prepare_recovery)
 		bri->prepare_recovery(adap);
 
+	bri->set_scl(adap, val);
+	ndelay(RECOVERY_NDELAY);
+
 	/*
 	 * By this time SCL is high, as we need to give 9 falling-rising edges
 	 */
@@ -593,7 +636,6 @@ static int i2c_generic_recovery(struct i2c_adapter *adap)
 
 int i2c_generic_scl_recovery(struct i2c_adapter *adap)
 {
-	adap->bus_recovery_info->set_scl(adap, 1);
 	return i2c_generic_recovery(adap);
 }
 EXPORT_SYMBOL_GPL(i2c_generic_scl_recovery);
@@ -632,8 +674,13 @@ static int i2c_device_probe(struct device *dev)
 	if (!client)
 		return 0;
 
-	if (!client->irq && dev->of_node) {
-		int irq = of_irq_get(dev->of_node, 0);
+	if (!client->irq) {
+		int irq = -ENOENT;
+
+		if (dev->of_node)
+			irq = of_irq_get(dev->of_node, 0);
+		else if (ACPI_COMPANION(dev))
+			irq = acpi_dev_gpio_irq_get(ACPI_COMPANION(dev), 0);
 
 		if (irq == -EPROBE_DEFER)
 			return irq;
@@ -1272,7 +1319,7 @@ static struct i2c_client *of_i2c_register_device(struct i2c_adapter *adap,
 	}
 
 	addr = of_get_property(node, "reg", &len);
-	if (!addr || (len < sizeof(int))) {
+	if (!addr || (len < sizeof(*addr))) {
 		dev_err(&adap->dev, "of_i2c: invalid reg on %s\n",
 			node->full_name);
 		return ERR_PTR(-EINVAL);
@@ -1324,13 +1371,17 @@ static int of_dev_node_match(struct device *dev, void *data)
 struct i2c_client *of_find_i2c_device_by_node(struct device_node *node)
 {
 	struct device *dev;
+	struct i2c_client *client;
 
-	dev = bus_find_device(&i2c_bus_type, NULL, node,
-					 of_dev_node_match);
+	dev = bus_find_device(&i2c_bus_type, NULL, node, of_dev_node_match);
 	if (!dev)
 		return NULL;
 
-	return i2c_verify_client(dev);
+	client = i2c_verify_client(dev);
+	if (!client)
+		put_device(dev);
+
+	return client;
 }
 EXPORT_SYMBOL(of_find_i2c_device_by_node);
 
@@ -1338,13 +1389,17 @@ EXPORT_SYMBOL(of_find_i2c_device_by_node);
 struct i2c_adapter *of_find_i2c_adapter_by_node(struct device_node *node)
 {
 	struct device *dev;
+	struct i2c_adapter *adapter;
 
-	dev = bus_find_device(&i2c_bus_type, NULL, node,
-					 of_dev_node_match);
+	dev = bus_find_device(&i2c_bus_type, NULL, node, of_dev_node_match);
 	if (!dev)
 		return NULL;
 
-	return i2c_verify_adapter(dev);
+	adapter = i2c_verify_adapter(dev);
+	if (!adapter)
+		put_device(dev);
+
+	return adapter;
 }
 EXPORT_SYMBOL(of_find_i2c_adapter_by_node);
 #else
@@ -1673,7 +1728,7 @@ void i2c_del_adapter(struct i2c_adapter *adap)
 	 * FIXME: This is old code and should ideally be replaced by an
 	 * alternative which results in decoupling the lifetime of the struct
 	 * device from the i2c_adapter, like spi or netdev do. Any solution
-	 * should be throughly tested with DEBUG_KOBJECT_RELEASE enabled!
+	 * should be thoroughly tested with DEBUG_KOBJECT_RELEASE enabled!
 	 */
 	init_completion(&adap->dev_released);
 	device_unregister(&adap->dev);
@@ -2914,18 +2969,24 @@ int i2c_slave_register(struct i2c_client *client, i2c_slave_cb_t slave_cb)
 {
 	int ret;
 
-	if (!client || !slave_cb)
+	if (!client || !slave_cb) {
+		WARN(1, "insufficent data\n");
 		return -EINVAL;
+	}
 
 	if (!(client->flags & I2C_CLIENT_TEN)) {
 		/* Enforce stricter address checking */
 		ret = i2c_check_addr_validity(client->addr);
-		if (ret)
+		if (ret) {
+			dev_err(&client->dev, "%s: invalid address\n", __func__);
 			return ret;
+		}
 	}
 
-	if (!client->adapter->algo->reg_slave)
+	if (!client->adapter->algo->reg_slave) {
+		dev_err(&client->dev, "%s: not supported by adapter\n", __func__);
 		return -EOPNOTSUPP;
+	}
 
 	client->slave_cb = slave_cb;
 
@@ -2933,8 +2994,10 @@ int i2c_slave_register(struct i2c_client *client, i2c_slave_cb_t slave_cb)
 	ret = client->adapter->algo->reg_slave(client);
 	i2c_unlock_adapter(client->adapter);
 
-	if (ret)
+	if (ret) {
 		client->slave_cb = NULL;
+		dev_err(&client->dev, "%s: adapter returned error %d\n", __func__, ret);
+	}
 
 	return ret;
 }
@@ -2944,8 +3007,10 @@ int i2c_slave_unregister(struct i2c_client *client)
 {
 	int ret;
 
-	if (!client->adapter->algo->unreg_slave)
+	if (!client->adapter->algo->unreg_slave) {
+		dev_err(&client->dev, "%s: not supported by adapter\n", __func__);
 		return -EOPNOTSUPP;
+	}
 
 	i2c_lock_adapter(client->adapter);
 	ret = client->adapter->algo->unreg_slave(client);
@@ -2953,6 +3018,8 @@ int i2c_slave_unregister(struct i2c_client *client)
 
 	if (ret == 0)
 		client->slave_cb = NULL;
+	else
+		dev_err(&client->dev, "%s: adapter returned error %d\n", __func__, ret);
 
 	return ret;
 }
