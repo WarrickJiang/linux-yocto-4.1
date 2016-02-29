@@ -1359,6 +1359,7 @@ static int xemacps_rx(struct net_local *lp, int budget)
 	struct sk_buff *new_skb;
 	u32 new_skb_baddr;
 	unsigned int numbdfree = 0;
+	int checksum_stat;
 	u32 size = 0;
 	u32 packets = 0;
 	u32 regval;
@@ -1406,7 +1407,11 @@ static int xemacps_rx(struct net_local *lp, int budget)
 		skb_put(skb, len);  /* Tell the skb how much data we got. */
 		skb->protocol = eth_type_trans(skb, lp->ndev);
 
-		skb->ip_summed = lp->ip_summed;
+		checksum_stat = (cur_p->ctrl & XEMACPS_RXBUF_IDMATCH_MASK) >>22;
+		if ( checksum_stat <= 1)
+			skb->ip_summed = CHECKSUM_NONE;
+		else
+			skb->ip_summed = lp->ip_summed;
 
 #ifdef CONFIG_XILINX_PS_EMAC_HWTSTAMP
 		if ((lp->hwtstamp_config.rx_filter == HWTSTAMP_FILTER_ALL) &&
