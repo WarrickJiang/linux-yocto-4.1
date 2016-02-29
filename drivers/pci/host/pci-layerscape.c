@@ -87,7 +87,7 @@ static irqreturn_t ls_pcie_msi_irq_handler(int irq, void *data)
 	struct pcie_port *pp = data;
 	struct ls_pcie *pcie = to_ls_pcie(pp);
 	unsigned long val;
-	int msi_irq, ret, pos;
+	int msi_irq, ret = IRQ_NONE, pos;
 
 	regmap_read(pcie->scfg, LS1021A_MSIR_OFF(pcie->index), (u32 *) &val);
 
