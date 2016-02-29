@@ -678,8 +678,6 @@ static int flexcan_poll(struct napi_struct *napi, int quota)
 	struct flexcan_regs __iomem *regs = priv->base;
 	u32 reg_iflag1, reg_esr;
 	int work_done = 0;
-	unsigned long iflag1;
-	u32 mailbox;
 
 	/*
 	 * The error bits are cleared on read,
