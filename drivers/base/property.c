@@ -129,11 +129,12 @@ EXPORT_SYMBOL_GPL(device_property_present);
 bool fwnode_property_present(struct fwnode_handle *fwnode, const char *propname)
 {
 	if (is_of_node(fwnode))
-		return of_property_read_bool(of_node(fwnode), propname);
+		return of_property_read_bool(to_of_node(fwnode), propname);
 	else if (is_acpi_node(fwnode))
-		return !acpi_dev_prop_get(acpi_node(fwnode), propname, NULL);
-
-	return !!pset_prop_get(to_pset(fwnode), propname);
+		return !acpi_node_prop_get(fwnode, propname, NULL);
+	else if (is_pset(fwnode))
+		return !!pset_prop_get(to_pset(fwnode), propname);
+	return false;
 }
 EXPORT_SYMBOL_GPL(fwnode_property_present);
 
@@ -153,6 +154,7 @@ EXPORT_SYMBOL_GPL(fwnode_property_present);
  *	   %-ENODATA if the property does not have a value,
  *	   %-EPROTO if the property is not an array of numbers,
  *	   %-EOVERFLOW if the size of the property is not as expected.
+ *	   %-ENXIO if no suitable firmware interface is present.
  */
 int device_property_read_u8_array(struct device *dev, const char *propname,
 				  u8 *val, size_t nval)
@@ -177,6 +179,7 @@ EXPORT_SYMBOL_GPL(device_property_read_u8_array);
  *	   %-ENODATA if the property does not have a value,
  *	   %-EPROTO if the property is not an array of numbers,
  *	   %-EOVERFLOW if the size of the property is not as expected.
+ *	   %-ENXIO if no suitable firmware interface is present.
  */
 int device_property_read_u16_array(struct device *dev, const char *propname,
 				   u16 *val, size_t nval)
@@ -201,6 +204,7 @@ EXPORT_SYMBOL_GPL(device_property_read_u16_array);
  *	   %-ENODATA if the property does not have a value,
  *	   %-EPROTO if the property is not an array of numbers,
  *	   %-EOVERFLOW if the size of the property is not as expected.
+ *	   %-ENXIO if no suitable firmware interface is present.
  */
 int device_property_read_u32_array(struct device *dev, const char *propname,
 				   u32 *val, size_t nval)
@@ -225,6 +229,7 @@ EXPORT_SYMBOL_GPL(device_property_read_u32_array);
  *	   %-ENODATA if the property does not have a value,
  *	   %-EPROTO if the property is not an array of numbers,
  *	   %-EOVERFLOW if the size of the property is not as expected.
+ *	   %-ENXIO if no suitable firmware interface is present.
  */
 int device_property_read_u64_array(struct device *dev, const char *propname,
 				   u64 *val, size_t nval)
@@ -249,6 +254,7 @@ EXPORT_SYMBOL_GPL(device_property_read_u64_array);
  *	   %-ENODATA if the property does not have a value,
  *	   %-EPROTO or %-EILSEQ if the property is not an array of strings,
  *	   %-EOVERFLOW if the size of the property is not as expected.
+ *	   %-ENXIO if no suitable firmware interface is present.
  */
 int device_property_read_string_array(struct device *dev, const char *propname,
 				      const char **val, size_t nval)
@@ -270,6 +276,7 @@ EXPORT_SYMBOL_GPL(device_property_read_string_array);
  *	   %-EINVAL if given arguments are not valid,
  *	   %-ENODATA if the property does not have a value,
  *	   %-EPROTO or %-EILSEQ if the property type is not a string.
+ *	   %-ENXIO if no suitable firmware interface is present.
  */
 int device_property_read_string(struct device *dev, const char *propname,
 				const char **val)
@@ -286,14 +293,16 @@ EXPORT_SYMBOL_GPL(device_property_read_string);
 ({ \
 	int _ret_; \
 	if (is_of_node(_fwnode_)) \
-		_ret_ = OF_DEV_PROP_READ_ARRAY(of_node(_fwnode_), _propname_, \
+		_ret_ = OF_DEV_PROP_READ_ARRAY(to_of_node(_fwnode_), _propname_, \
 					       _type_, _val_, _nval_); \
 	else if (is_acpi_node(_fwnode_)) \
-		_ret_ = acpi_dev_prop_read(acpi_node(_fwnode_), _propname_, \
-					   _proptype_, _val_, _nval_); \
-	else \
+		_ret_ = acpi_node_prop_read(_fwnode_, _propname_, _proptype_, \
+					    _val_, _nval_); \
+	else if (is_pset(_fwnode_)) \
 		_ret_ = pset_prop_read_array(to_pset(_fwnode_), _propname_, \
 					     _proptype_, _val_, _nval_); \
+	else \
+		_ret_ = -ENXIO; \
 	_ret_; \
 })
 
@@ -425,15 +434,16 @@ int fwnode_property_read_string_array(struct fwnode_handle *fwnode,
 {
 	if (is_of_node(fwnode))
 		return val ?
-			of_property_read_string_array(of_node(fwnode), propname,
-						      val, nval) :
-			of_property_count_strings(of_node(fwnode), propname);
+			of_property_read_string_array(to_of_node(fwnode),
+						      propname, val, nval) :
+			of_property_count_strings(to_of_node(fwnode), propname);
 	else if (is_acpi_node(fwnode))
-		return acpi_dev_prop_read(acpi_node(fwnode), propname,
-					  DEV_PROP_STRING, val, nval);
-
-	return pset_prop_read_array(to_pset(fwnode), propname,
-				    DEV_PROP_STRING, val, nval);
+		return acpi_node_prop_read(fwnode, propname, DEV_PROP_STRING,
+					   val, nval);
+	else if (is_pset(fwnode))
+		return pset_prop_read_array(to_pset(fwnode), propname,
+					    DEV_PROP_STRING, val, nval);
+	return -ENXIO;
 }
 EXPORT_SYMBOL_GPL(fwnode_property_read_string_array);
 
@@ -456,11 +466,13 @@ int fwnode_property_read_string(struct fwnode_handle *fwnode,
 				const char *propname, const char **val)
 {
 	if (is_of_node(fwnode))
-		return of_property_read_string(of_node(fwnode), propname, val);
+		return of_property_read_string(to_of_node(fwnode), propname, val);
 	else if (is_acpi_node(fwnode))
-		return acpi_dev_prop_read(acpi_node(fwnode), propname,
-					  DEV_PROP_STRING, val, 1);
-
+		return acpi_node_prop_read(fwnode, propname, DEV_PROP_STRING,
+					   val, 1);
+	else if (is_pset(fwnode))
+		return pset_prop_read_array(to_pset(fwnode), propname,
+					    DEV_PROP_STRING, val, 1);
 	return -ENXIO;
 }
 EXPORT_SYMBOL_GPL(fwnode_property_read_string);
@@ -476,13 +488,13 @@ struct fwnode_handle *device_get_next_child_node(struct device *dev,
 	if (IS_ENABLED(CONFIG_OF) && dev->of_node) {
 		struct device_node *node;
 
-		node = of_get_next_available_child(dev->of_node, of_node(child));
+		node = of_get_next_available_child(dev->of_node, to_of_node(child));
 		if (node)
 			return &node->fwnode;
 	} else if (IS_ENABLED(CONFIG_ACPI)) {
 		struct acpi_device *node;
 
-		node = acpi_get_next_child(dev, acpi_node(child));
+		node = acpi_get_next_child(dev, to_acpi_device_node(child));
 		if (node)
 			return acpi_fwnode_handle(node);
 	}
@@ -501,7 +513,7 @@ EXPORT_SYMBOL_GPL(device_get_next_child_node);
 void fwnode_handle_put(struct fwnode_handle *fwnode)
 {
 	if (is_of_node(fwnode))
-		of_node_put(of_node(fwnode));
+		of_node_put(to_of_node(fwnode));
 }
 EXPORT_SYMBOL_GPL(fwnode_handle_put);
 

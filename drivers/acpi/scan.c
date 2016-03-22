@@ -11,6 +11,7 @@
 #include <linux/kthread.h>
 #include <linux/dmi.h>
 #include <linux/nls.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/pgtable.h>
 
@@ -135,12 +136,13 @@ static int create_pnp_modalias(struct acpi_device *acpi_dev, char *modalias,
 	struct acpi_hardware_id *id;
 
 	/*
-	 * Since we skip PRP0001 from the modalias below, 0 should be returned
-	 * if PRP0001 is the only ACPI/PNP ID in the device's list.
+	 * Since we skip ACPI_DT_NAMESPACE_HID from the modalias below, 0 should
+	 * be returned if ACPI_DT_NAMESPACE_HID is the only ACPI/PNP ID in the
+	 * device's list.
 	 */
 	count = 0;
 	list_for_each_entry(id, &acpi_dev->pnp.ids, list)
-		if (strcmp(id->id, "PRP0001"))
+		if (strcmp(id->id, ACPI_DT_NAMESPACE_HID))
 			count++;
 
 	if (!count)
@@ -153,7 +155,7 @@ static int create_pnp_modalias(struct acpi_device *acpi_dev, char *modalias,
 	size -= len;
 
 	list_for_each_entry(id, &acpi_dev->pnp.ids, list) {
-		if (!strcmp(id->id, "PRP0001"))
+		if (!strcmp(id->id, ACPI_DT_NAMESPACE_HID))
 			continue;
 
 		count = snprintf(&modalias[len], size, "%s:", id->id);
@@ -177,7 +179,8 @@ static int create_pnp_modalias(struct acpi_device *acpi_dev, char *modalias,
  * @size: Size of the buffer.
  *
  * Expose DT compatible modalias as of:NnameTCcompatible.  This function should
- * only be called for devices having PRP0001 in their list of ACPI/PNP IDs.
+ * only be called for devices having ACPI_DT_NAMESPACE_HID in their list of
+ * ACPI/PNP IDs.
  */
 static int create_of_modalias(struct acpi_device *acpi_dev, char *modalias,
 			      int size)
@@ -980,9 +983,9 @@ static void acpi_device_remove_files(struct acpi_device *dev)
  * @adev: ACPI device object to match.
  * @of_match_table: List of device IDs to match against.
  *
- * If @dev has an ACPI companion which has the special PRP0001 device ID in its
- * list of identifiers and a _DSD object with the "compatible" property, use
- * that property to match against the given list of identifiers.
+ * If @dev has an ACPI companion which has ACPI_DT_NAMESPACE_HID in its list of
+ * identifiers and a _DSD object with the "compatible" property, use that
+ * property to match against the given list of identifiers.
  */
 static bool acpi_of_match_device(struct acpi_device *adev,
 				 const struct of_device_id *of_match_table)
@@ -1038,14 +1041,14 @@ static const struct acpi_device_id *__acpi_match_device(
 				return id;
 
 		/*
-		 * Next, check the special "PRP0001" ID and try to match the
+		 * Next, check ACPI_DT_NAMESPACE_HID and try to match the
 		 * "compatible" property if found.
 		 *
 		 * The id returned by the below is not valid, but the only
 		 * caller passing non-NULL of_ids here is only interested in
 		 * whether or not the return value is NULL.
 		 */
-		if (!strcmp("PRP0001", hwid->id)
+		if (!strcmp(ACPI_DT_NAMESPACE_HID, hwid->id)
 		    && acpi_of_match_device(device, of_ids))
 			return id;
 	}
@@ -2109,6 +2112,39 @@ void acpi_free_pnp_ids(struct acpi_device_pnp *pnp)
 	kfree(pnp->unique_id);
 }
 
+static void acpi_init_coherency(struct acpi_device *adev)
+{
+	unsigned long long cca = 0;
+	acpi_status status;
+	struct acpi_device *parent = adev->parent;
+
+	if (parent && parent->flags.cca_seen) {
+		/*
+		 * From ACPI spec, OSPM will ignore _CCA if an ancestor
+		 * already saw one.
+		 */
+		adev->flags.cca_seen = 1;
+		cca = parent->flags.coherent_dma;
+	} else {
+		status = acpi_evaluate_integer(adev->handle, "_CCA",
+					       NULL, &cca);
+		if (ACPI_SUCCESS(status))
+			adev->flags.cca_seen = 1;
+		else if (!IS_ENABLED(CONFIG_ACPI_CCA_REQUIRED))
+			/*
+			 * If architecture does not specify that _CCA is
+			 * required for DMA-able devices (e.g. x86),
+			 * we default to _CCA=1.
+			 */
+			cca = 1;
+		else
+			acpi_handle_debug(adev->handle,
+					  "ACPI device is missing _CCA.\n");
+	}
+
+	adev->flags.coherent_dma = cca;
+}
+
 void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
 			     int type, unsigned long long sta)
 {
@@ -2127,6 +2163,7 @@ void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
 	device->flags.visited = false;
 	device_initialize(&device->dev);
 	dev_set_uevent_suppress(&device->dev, true);
+	acpi_init_coherency(device);
 }
 
 void acpi_device_add_finalize(struct acpi_device *device)
@@ -2405,7 +2442,7 @@ static void acpi_default_enumeration(struct acpi_device *device)
 }
 
 static const struct acpi_device_id generic_device_ids[] = {
-	{"PRP0001", },
+	{ACPI_DT_NAMESPACE_HID, },
 	{"", },
 };
 
@@ -2413,8 +2450,8 @@ static int acpi_generic_device_attach(struct acpi_device *adev,
 				      const struct acpi_device_id *not_used)
 {
 	/*
-	 * Since PRP0001 is the only ID handled here, the test below can be
-	 * unconditional.
+	 * Since ACPI_DT_NAMESPACE_HID is the only ID handled here, the test
+	 * below can be unconditional.
 	 */
 	if (adev->data.of_compatible)
 		acpi_default_enumeration(adev);
