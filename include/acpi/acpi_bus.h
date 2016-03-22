@@ -208,7 +208,10 @@ struct acpi_device_flags {
 	u32 visited:1;
 	u32 hotplug_notify:1;
 	u32 is_dock_station:1;
-	u32 reserved:23;
+	u32 of_compatible_ok:1;
+	u32 coherent_dma:1;
+	u32 cca_seen:1;
+	u32 reserved:20;
 };
 
 /* File System */
@@ -345,6 +348,7 @@ struct acpi_device_data {
 	const union acpi_object *pointer;
 	const union acpi_object *properties;
 	const union acpi_object *of_compatible;
+	struct list_head subnodes;
 };
 
 struct acpi_gpio_mapping;
@@ -380,15 +384,73 @@ struct acpi_device {
 	void (*remove)(struct acpi_device *);
 };
 
+/* Non-device subnode */
+struct acpi_data_node {
+	const char *name;
+	struct fwnode_handle fwnode;
+	struct acpi_device_data data;
+	struct list_head sibling;
+};
+
+static inline bool acpi_check_dma(struct acpi_device *adev, bool *coherent)
+{
+	bool ret = false;
+
+	if (!adev)
+		return ret;
+
+	/**
+	 * Currently, we only support _CCA=1 (i.e. coherent_dma=1)
+	 * This should be equivalent to specifyig dma-coherent for
+	 * a device in OF.
+	 *
+	 * For the case when _CCA=0 (i.e. coherent_dma=0 && cca_seen=1),
+	 * There are two cases:
+	 * case 1. Do not support and disable DMA.
+	 * case 2. Support but rely on arch-specific cache maintenance for
+	 *         non-coherence DMA operations.
+	 * Currently, we implement case 1 above.
+	 *
+	 * For the case when _CCA is missing (i.e. cca_seen=0) and
+	 * platform specifies ACPI_CCA_REQUIRED, we do not support DMA,
+	 * and fallback to arch-specific default handling.
+	 *
+	 * See acpi_init_coherency() for more info.
+	 */
+	if (adev->flags.coherent_dma) {
+		ret = true;
+		if (coherent)
+			*coherent = adev->flags.coherent_dma;
+	}
+	return ret;
+}
+
 static inline bool is_acpi_node(struct fwnode_handle *fwnode)
+{
+	return fwnode && (fwnode->type == FWNODE_ACPI
+		|| fwnode->type == FWNODE_ACPI_DATA);
+}
+
+static inline bool is_acpi_device_node(struct fwnode_handle *fwnode)
 {
 	return fwnode && fwnode->type == FWNODE_ACPI;
 }
 
-static inline struct acpi_device *acpi_node(struct fwnode_handle *fwnode)
+static inline struct acpi_device *to_acpi_device_node(struct fwnode_handle *fwnode)
 {
-	return is_acpi_node(fwnode) ?
+	return is_acpi_device_node(fwnode) ?
 		container_of(fwnode, struct acpi_device, fwnode) : NULL;
+}
+
+static inline bool is_acpi_data_node(struct fwnode_handle *fwnode)
+{
+	return fwnode && fwnode->type == FWNODE_ACPI_DATA;
+}
+
+static inline struct acpi_data_node *to_acpi_data_node(struct fwnode_handle *fwnode)
+{
+	return is_acpi_data_node(fwnode) ?
+		container_of(fwnode, struct acpi_data_node, fwnode) : NULL;
 }
 
 static inline struct fwnode_handle *acpi_fwnode_handle(struct acpi_device *adev)
