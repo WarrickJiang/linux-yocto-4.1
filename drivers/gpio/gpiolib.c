@@ -2058,15 +2058,15 @@ struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
 	if (is_of_node(fwnode)) {
 		enum of_gpio_flags flags;
 
-		desc = of_get_named_gpiod_flags(of_node(fwnode), propname, 0,
+		desc = of_get_named_gpiod_flags(to_of_node(fwnode), propname, 0,
 						&flags);
 		if (!IS_ERR(desc))
 			active_low = flags & OF_GPIO_ACTIVE_LOW;
-	} else if (is_acpi_node(fwnode)) {
+	} else if (is_acpi_device_node(fwnode)) {
 		struct acpi_gpio_info info;
 
-		desc = acpi_get_gpiod_by_index(acpi_node(fwnode), propname, 0,
-					       &info);
+		desc = acpi_get_gpiod_by_index(to_acpi_device_node(fwnode),
+					       propname, 0, &info);
 		if (!IS_ERR(desc))
 			active_low = info.active_low;
 	}
