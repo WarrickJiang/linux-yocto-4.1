@@ -83,6 +83,7 @@ enum board_ids {
 };
 
 static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
+static void ahci_remove_one(struct pci_dev *dev);
 static int ahci_vt8251_hardreset(struct ata_link *link, unsigned int *class,
 				 unsigned long deadline);
 static int ahci_avn_hardreset(struct ata_link *link, unsigned int *class,
@@ -92,9 +93,13 @@ static bool is_mcp89_apple(struct pci_dev *pdev);
 static int ahci_p5wdh_hardreset(struct ata_link *link, unsigned int *class,
 				unsigned long deadline);
 #ifdef CONFIG_PM
-static int ahci_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg);
-static int ahci_pci_device_resume(struct pci_dev *pdev);
+static int ahci_pci_device_runtime_suspend(struct device *dev);
+static int ahci_pci_device_runtime_resume(struct device *dev);
+#ifdef CONFIG_PM_SLEEP
+static int ahci_pci_device_suspend(struct device *dev);
+static int ahci_pci_device_resume(struct device *dev);
 #endif
+#endif /* CONFIG_PM */
 
 static struct scsi_host_template ahci_sht = {
 	AHCI_SHT("ahci"),
@@ -521,16 +526,20 @@ static const struct pci_device_id ahci_pci_tbl[] = {
 	{ }	/* terminate list */
 };
 
+static const struct dev_pm_ops ahci_pci_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(ahci_pci_device_suspend, ahci_pci_device_resume)
+	SET_RUNTIME_PM_OPS(ahci_pci_device_runtime_suspend,
+			   ahci_pci_device_runtime_resume, NULL)
+};
 
 static struct pci_driver ahci_pci_driver = {
 	.name			= DRV_NAME,
 	.id_table		= ahci_pci_tbl,
 	.probe			= ahci_init_one,
-	.remove			= ata_pci_remove_one,
-#ifdef CONFIG_PM
-	.suspend		= ahci_pci_device_suspend,
-	.resume			= ahci_pci_device_resume,
-#endif
+	.remove			= ahci_remove_one,
+	.driver = {
+		.pm		= &ahci_pci_pm_ops,
+	},
 };
 
 #if defined(CONFIG_PATA_MARVELL) || defined(CONFIG_PATA_MARVELL_MODULE)
@@ -759,42 +768,66 @@ static int ahci_avn_hardreset(struct ata_link *link, unsigned int *class,
 
 
 #ifdef CONFIG_PM
-static int ahci_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg)
+static void ahci_pci_disable_interrupts(struct ata_host *host)
 {
-	struct ata_host *host = pci_get_drvdata(pdev);
 	struct ahci_host_priv *hpriv = host->private_data;
 	void __iomem *mmio = hpriv->mmio;
 	u32 ctl;
 
-	if (mesg.event & PM_EVENT_SUSPEND &&
-	    hpriv->flags & AHCI_HFLAG_NO_SUSPEND) {
+	/* AHCI spec rev1.1 section 8.3.3:
+	 * Software must disable interrupts prior to requesting a
+	 * transition of the HBA to D3 state.
+	 */
+	ctl = readl(mmio + HOST_CTL);
+	ctl &= ~HOST_IRQ_EN;
+	writel(ctl, mmio + HOST_CTL);
+	readl(mmio + HOST_CTL); /* flush */
+}
+
+static int ahci_pci_device_runtime_suspend(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct ata_host *host = pci_get_drvdata(pdev);
+
+	ahci_pci_disable_interrupts(host);
+	return 0;
+}
+
+static int ahci_pci_device_runtime_resume(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct ata_host *host = pci_get_drvdata(pdev);
+	int rc;
+
+	rc = ahci_pci_reset_controller(host);
+	if (rc)
+		return rc;
+	ahci_pci_init_controller(host);
+	return 0;
+}
+
+#ifdef CONFIG_PM_SLEEP
+static int ahci_pci_device_suspend(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct ata_host *host = pci_get_drvdata(pdev);
+	struct ahci_host_priv *hpriv = host->private_data;
+
+	if (hpriv->flags & AHCI_HFLAG_NO_SUSPEND) {
 		dev_err(&pdev->dev,
 			"BIOS update required for suspend/resume\n");
 		return -EIO;
 	}
 
-	if (mesg.event & PM_EVENT_SLEEP) {
-		/* AHCI spec rev1.1 section 8.3.3:
-		 * Software must disable interrupts prior to requesting a
-		 * transition of the HBA to D3 state.
-		 */
-		ctl = readl(mmio + HOST_CTL);
-		ctl &= ~HOST_IRQ_EN;
-		writel(ctl, mmio + HOST_CTL);
-		readl(mmio + HOST_CTL); /* flush */
-	}
-
-	return ata_pci_device_suspend(pdev, mesg);
+	ahci_pci_disable_interrupts(host);
+	return ata_host_suspend(host, PMSG_SUSPEND);
 }
 
-static int ahci_pci_device_resume(struct pci_dev *pdev)
+static int ahci_pci_device_resume(struct device *dev)
 {
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct ata_host *host = pci_get_drvdata(pdev);
 	int rc;
-
-	rc = ata_pci_device_do_resume(pdev);
-	if (rc)
-		return rc;
 
 	/* Apple BIOS helpfully mangles the registers on resume */
 	if (is_mcp89_apple(pdev))
@@ -813,6 +846,8 @@ static int ahci_pci_device_resume(struct pci_dev *pdev)
 	return 0;
 }
 #endif
+
+#endif /* CONFIG_PM */
 
 static int ahci_configure_dma_masks(struct pci_dev *pdev, int using_dac)
 {
@@ -1289,17 +1324,17 @@ static inline void ahci_gtf_filter_workaround(struct ata_host *host)
 {}
 #endif
 
-static int ahci_init_interrupts(struct pci_dev *pdev, unsigned int n_ports,
-				struct ahci_host_priv *hpriv)
+static int ahci_init_msi(struct pci_dev *pdev, unsigned int n_ports,
+			struct ahci_host_priv *hpriv)
 {
 	int rc, nvec;
 
 	if (hpriv->flags & AHCI_HFLAG_NO_MSI)
-		goto intx;
+		return -ENODEV;
 
 	nvec = pci_msi_vec_count(pdev);
 	if (nvec < 0)
-		goto intx;
+		return nvec;
 
 	/*
 	 * If number of MSIs is less than number of ports then Sharing Last
@@ -1312,8 +1347,8 @@ static int ahci_init_interrupts(struct pci_dev *pdev, unsigned int n_ports,
 	rc = pci_enable_msi_exact(pdev, nvec);
 	if (rc == -ENOSPC)
 		goto single_msi;
-	else if (rc < 0)
-		goto intx;
+	if (rc < 0)
+		return rc;
 
 	/* fallback to single MSI mode if the controller enforced MRSM mode */
 	if (readl(hpriv->mmio + HOST_CTL) & HOST_MRSM) {
@@ -1325,15 +1360,33 @@ static int ahci_init_interrupts(struct pci_dev *pdev, unsigned int n_ports,
 	if (nvec > 1)
 		hpriv->flags |= AHCI_HFLAG_MULTI_MSI;
 
-	return nvec;
+	goto out;
 
 single_msi:
-	if (pci_enable_msi(pdev))
-		goto intx;
-	return 1;
+	nvec = 1;
 
-intx:
+	rc = pci_enable_msi(pdev);
+	if (rc < 0)
+		return rc;
+out:
+	hpriv->irq = pdev->irq;
+
+	return nvec;
+}
+
+static int ahci_init_interrupts(struct pci_dev *pdev, unsigned int n_ports,
+				struct ahci_host_priv *hpriv)
+{
+	int nvec;
+
+	nvec = ahci_init_msi(pdev, n_ports, hpriv);
+	if (nvec >= 0)
+		return nvec;
+
+	/* lagacy intx interrupts */
 	pci_intx(pdev, 1);
+	hpriv->irq = pdev->irq;
+
 	return 0;
 }
 
@@ -1486,12 +1539,12 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 */
 	n_ports = max(ahci_nr_ports(hpriv->cap), fls(hpriv->port_map));
 
-	ahci_init_interrupts(pdev, n_ports, hpriv);
-
 	host = ata_host_alloc_pinfo(&pdev->dev, ppi, n_ports);
 	if (!host)
 		return -ENOMEM;
 	host->private_data = hpriv;
+
+	ahci_init_interrupts(pdev, n_ports, hpriv);
 
 	if (!(hpriv->cap & HOST_CAP_SSS) || ahci_ignore_sss)
 		host->flags |= ATA_HOST_PARALLEL_SCAN;
@@ -1538,7 +1591,18 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_master(pdev);
 
-	return ahci_host_activate(host, pdev->irq, &ahci_sht);
+	rc = ahci_host_activate(host, &ahci_sht);
+	if (rc)
+		return rc;
+
+	pm_runtime_put_noidle(&pdev->dev);
+	return 0;
+}
+
+static void ahci_remove_one(struct pci_dev *pdev)
+{
+	pm_runtime_get_noresume(&pdev->dev);
+	ata_pci_remove_one(pdev);
 }
 
 module_pci_driver(ahci_pci_driver);
