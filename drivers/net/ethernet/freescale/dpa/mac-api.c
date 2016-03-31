@@ -276,8 +276,10 @@ static int __cold start(struct mac_device *mac_dev)
 	if (!_errno && phy_dev) {
 		if (macdev2enetinterface(mac_dev) != e_ENET_MODE_XGMII_10000)
 			phy_start(phy_dev);
-		else if (phy_dev->drv->read_status)
+		else if (phy_dev->drv->read_status) {
 			phy_dev->drv->read_status(phy_dev);
+			netif_carrier_on(phy_dev->attached_dev);
+		}
 	}
 
 	return _errno;
