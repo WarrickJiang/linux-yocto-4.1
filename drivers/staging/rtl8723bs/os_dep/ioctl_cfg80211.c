@@ -3421,6 +3421,7 @@ static void rtw_cfg80211_preinit_wiphy(struct adapter *padapter, struct wiphy *w
 
 	wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
 	wiphy->flags |= WIPHY_FLAG_OFFCHAN_TX | WIPHY_FLAG_HAVE_AP_SME;
+	wiphy->flags |= WIPHY_FLAG_NETNS_OK;
 
 #if defined(CONFIG_PM)
 	wiphy->flags |= WIPHY_FLAG_SUPPORTS_SCHED_SCAN;
