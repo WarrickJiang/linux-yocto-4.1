@@ -69,7 +69,6 @@ static struct qman_portal *shared_portals[NR_CPUS];
 static int num_shared_portals;
 static int shared_portals_idx;
 static LIST_HEAD(unused_pcfgs);
-static DEFINE_SPINLOCK(unused_pcfgs_lock);
 
 /* A SDQCR mask comprising all the available/visible pool channels */
 static u32 pools_sdqcr;
@@ -472,20 +471,6 @@ static struct qm_portal_config *get_pcfg(struct list_head *list)
 	return pcfg;
 }
 
-static struct qm_portal_config *get_pcfg_idx(struct list_head *list, u32 idx)
-{
-	struct qm_portal_config *pcfg;
-	if (list_empty(list))
-		return NULL;
-	list_for_each_entry(pcfg, list, list) {
-		if (pcfg->public_cfg.index == idx) {
-			list_del(&pcfg->list);
-			return pcfg;
-		}
-	}
-	return NULL;
-}
-
 static void portal_set_cpu(struct qm_portal_config *pcfg, int cpu)
 {
 #ifdef CONFIG_FSL_PAMU
@@ -569,6 +554,23 @@ _iommu_domain_free:
 #endif
 }
 
+#ifdef CONFIG_FSL_USDPAA
+static DEFINE_SPINLOCK(unused_pcfgs_lock);
+
+static struct qm_portal_config *get_pcfg_idx(struct list_head *list, u32 idx)
+{
+	struct qm_portal_config *pcfg;
+	if (list_empty(list))
+		return NULL;
+	list_for_each_entry(pcfg, list, list) {
+		if (pcfg->public_cfg.index == idx) {
+			list_del(&pcfg->list);
+			return pcfg;
+		}
+	}
+	return NULL;
+}
+
 struct qm_portal_config *qm_get_unused_portal_idx(u32 idx)
 {
 	struct qm_portal_config *ret;
@@ -603,6 +605,7 @@ void qm_put_unused_portal(struct qm_portal_config *pcfg)
 	list_add(&pcfg->list, &unused_pcfgs);
 	spin_unlock(&unused_pcfgs_lock);
 }
+#endif
 
 static struct qman_portal *init_pcfg(struct qm_portal_config *pcfg)
 {

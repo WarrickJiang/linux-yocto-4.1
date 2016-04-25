@@ -81,11 +81,13 @@ void bman_destroy_portal(struct bman_portal *bm);
 
 const struct bm_portal_config *bman_destroy_affine_portal(void);
 
+#ifdef CONFIG_FSL_USDPAA
 /* Hooks from fsl_usdpaa.c to bman_driver.c */
 struct bm_portal_config *bm_get_unused_portal(void);
 struct bm_portal_config *bm_get_unused_portal_idx(uint32_t idx);
 void bm_put_unused_portal(struct bm_portal_config *pcfg);
 void bm_set_liodns(struct bm_portal_config *pcfg);
+#endif
 
 /* Pool logic in the portal driver, during initialisation, needs to know if
  * there's access to CCSR or not (if not, it'll cripple the pool allocator). */

@@ -228,12 +228,14 @@ struct qman_portal *qman_create_affine_slave(struct qman_portal *redirect,
 const struct qm_portal_config *qman_destroy_affine_portal(void);
 void qman_destroy_portal(struct qman_portal *qm);
 
+#ifdef CONFIG_FSL_USDPAA
 /* Hooks from fsl_usdpaa.c to qman_driver.c */
 struct qm_portal_config *qm_get_unused_portal(void);
 struct qm_portal_config *qm_get_unused_portal_idx(uint32_t idx);
 
 void qm_put_unused_portal(struct qm_portal_config *pcfg);
 void qm_set_liodns(struct qm_portal_config *pcfg);
+#endif
 
 /* This CGR feature is supported by h/w and required by unit-tests and the
  * debugfs hooks, so is implemented in the driver. However it allows an explicit

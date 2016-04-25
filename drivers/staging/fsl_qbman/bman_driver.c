@@ -49,7 +49,6 @@ static struct bman_portal *shared_portals[NR_CPUS];
 static int num_shared_portals;
 static int shared_portals_idx;
 static LIST_HEAD(unused_pcfgs);
-static DEFINE_SPINLOCK(unused_pcfgs_lock);
 static void *affine_bportals[NR_CPUS];
 
 static int __init fsl_bpool_init(struct device_node *node)
@@ -209,6 +208,7 @@ static struct bm_portal_config *get_pcfg(struct list_head *list)
 	return pcfg;
 }
 
+#ifdef CONFIG_FSL_USDPAA
 static struct bm_portal_config *get_pcfg_idx(struct list_head *list,
 					     uint32_t idx)
 {
@@ -224,6 +224,7 @@ static struct bm_portal_config *get_pcfg_idx(struct list_head *list,
 	return NULL;
 }
 
+static DEFINE_SPINLOCK(unused_pcfgs_lock);
 struct bm_portal_config *bm_get_unused_portal(void)
 {
 	return bm_get_unused_portal_idx(QBMAN_ANY_PORTAL_IDX);
@@ -247,6 +248,7 @@ void bm_put_unused_portal(struct bm_portal_config *pcfg)
 	list_add(&pcfg->list, &unused_pcfgs);
 	spin_unlock(&unused_pcfgs_lock);
 }
+#endif
 
 static struct bman_portal *init_pcfg(struct bm_portal_config *pcfg)
 {

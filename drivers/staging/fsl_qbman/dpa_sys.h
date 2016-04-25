@@ -293,9 +293,10 @@ err:
 	return -EINVAL;
 }
 
+#ifdef CONFIG_FSL_USDPAA
 /* Hooks from fsl_usdpaa_irq.c to fsl_usdpaa.c */
 int usdpaa_get_portal_config(struct file *filp, void *cinh,
 			     enum usdpaa_portal_type ptype, unsigned int *irq,
 			     void **iir_reg);
-
+#endif
 #endif /* DPA_SYS_H */
