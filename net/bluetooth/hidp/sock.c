@@ -275,7 +275,7 @@ int __init hidp_init_sockets(void)
 		goto error;
 	}
 
-	err = bt_procfs_init(&init_net, "hidp", &hidp_sk_list, NULL);
+	err = bt_procfs_init(current->nsproxy->net_ns, "hidp", &hidp_sk_list, NULL);
 	if (err < 0) {
 		BT_ERR("Failed to create HIDP proc file");
 		bt_sock_unregister(BTPROTO_HIDP);
@@ -293,7 +293,7 @@ error:
 
 void __exit hidp_cleanup_sockets(void)
 {
-	bt_procfs_cleanup(&init_net, "hidp");
+	bt_procfs_cleanup(current->nsproxy->net_ns, "hidp");
 	bt_sock_unregister(BTPROTO_HIDP);
 	proto_unregister(&hidp_proto);
 }
