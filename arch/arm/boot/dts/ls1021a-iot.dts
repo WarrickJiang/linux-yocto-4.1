@@ -249,7 +249,7 @@
 	bus-num = <0>;
 	fsl,spi-num-chipselects = <2>;
 	fsl,spi-flash-chipselects = <0>;
-	status = "disabled";
+	status = "okay";
 
 	qflash0: s25fl128s@0 {
 		#address-cells = <1>;
@@ -259,21 +259,16 @@
 		reg = <0>;
 
 		partition@0 {
-			label = "s25fl128s-0";
-			reg = <0x0 0x1000000>;
+			label = "rcw, u-boot";
+			reg = <0x0 0x100000>;
 		};
-	};
-
-	qflash1: s25fl128s@1 {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		compatible = "spansion,s25fl129p1";
-		spi-max-frequency = <20000000>;
-		reg = <1>;
-
-		partition@0x0 {
-			label = "s25fl128s-1";
-			reg = <0x0 0x1000000>;
+		partition@1 {
+			label = "env";
+			reg = <0x100000 0x40000>;
+		};
+		partition@2 {
+			label = "rootfs";
+			reg = <0x200000 0x3e00000>;
 		};
 	};
 };
