@@ -1174,7 +1174,15 @@ static int fm_remove(struct platform_device *of_dev)
 #if defined(CONFIG_KEXEC)
 static void fm_shutdown(struct platform_device *of_dev)
 {
-	fm_remove(of_dev);
+	t_LnxWrpFmDev   *p_LnxWrpFmDev;
+	struct device   *dev;
+
+	dev = &of_dev->dev;
+	p_LnxWrpFmDev = dev_get_drvdata(dev);
+	if (!p_LnxWrpFmDev->active)
+		return;
+
+	FreeFmPcdDev(p_LnxWrpFmDev);
 }
 #endif
 
