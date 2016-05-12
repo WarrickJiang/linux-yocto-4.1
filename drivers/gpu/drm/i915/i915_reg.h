@@ -1614,8 +1614,8 @@ enum skl_disp_power_wells {
 
 #define I915_PM_INTERRUPT				(1<<31)
 #define I915_ISP_INTERRUPT				(1<<22)
-#define I915_LPE_PIPE_B_INTERRUPT			(1<<21)
-#define I915_LPE_PIPE_A_INTERRUPT			(1<<20)
+#define I915_LPE_PIPE_A_INTERRUPT			(1<<21)
+#define I915_LPE_PIPE_B_INTERRUPT			(1<<20)
 #define I915_MIPIC_INTERRUPT				(1<<19)
 #define I915_MIPIA_INTERRUPT				(1<<18)
 #define I915_PIPE_CONTROL_NOTIFY_INTERRUPT		(1<<18)
