@@ -16,6 +16,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/irqchip/chained_irq.h>
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -744,6 +745,17 @@ free_resources:
 	return err;
 }
 
+#ifdef CONFIG_PCI_MSI
+static void xilinx_pcie_intr_chain_handler(unsigned int irq, struct irq_desc *desc)
+{
+	struct irq_chip *chip = irq_get_chip(irq);
+
+	chained_irq_enter(chip, desc);
+	xilinx_pcie_intr_handler(irq, irq_get_handler_data(irq));
+	chained_irq_exit(chip, desc);
+}
+#endif
+
 /**
  * xilinx_pcie_parse_dt - Parse Device tree
  * @port: PCIe port information
@@ -775,6 +787,10 @@ static int xilinx_pcie_parse_dt(struct xilinx_pcie_port *port)
 		return PTR_ERR(port->reg_base);
 
 	port->irq = irq_of_parse_and_map(node, 0);
+#ifdef CONFIG_PCI_MSI
+	irq_set_handler_data(port->irq, port);
+	irq_set_chained_handler(port->irq, xilinx_pcie_intr_chain_handler);
+#else
 	err = devm_request_irq(dev, port->irq, xilinx_pcie_intr_handler,
 			       IRQF_SHARED | IRQF_NO_THREAD,
 			       "xilinx-pcie", port);
@@ -782,6 +798,7 @@ static int xilinx_pcie_parse_dt(struct xilinx_pcie_port *port)
 		dev_err(dev, "unable to request irq %d\n", port->irq);
 		return err;
 	}
+#endif
 
 	return 0;
 }
