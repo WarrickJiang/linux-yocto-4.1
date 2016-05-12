@@ -25,6 +25,13 @@
 #ifndef _I915_REG_H_
 #define _I915_REG_H_
 
+
+typedef struct {
+	uint32_t reg;
+} i915_reg_t;
+
+#define _MMIO(r) ((off_t)((const i915_reg_t){ .reg = (r) }).reg)
+
 #define _PIPE(pipe, a, b) ((a) + (pipe)*((b)-(a)))
 #define _PLANE(plane, a, b) _PIPE(plane, a, b)
 #define _TRANSCODER(tran, a, b) ((a) + (tran)*((b)-(a)))
