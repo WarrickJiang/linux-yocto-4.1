@@ -2703,11 +2703,14 @@ int i915_enable_hdmi_audio_int(struct drm_device *dev)
 	int pipe = 1;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	i915_enable_lpe_pipestat(dev_priv, pipe);
+
 	imr = I915_READ(VLV_IMR);
 	/* Audio is on Stream A */
 	imr &= ~I915_LPE_PIPE_A_INTERRUPT;
 	I915_WRITE(VLV_IMR, imr);
-	i915_enable_lpe_pipestat(dev_priv, pipe);
+	I915_WRITE(VLV_IER, ~imr);
+	POSTING_READ(VLV_IER);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 
 	return 0;
@@ -2724,7 +2727,10 @@ int i915_disable_hdmi_audio_int(struct drm_device *dev)
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	imr = I915_READ(VLV_IMR);
 	imr |= I915_LPE_PIPE_A_INTERRUPT;
+	I915_WRITE(VLV_IER, ~imr);
 	I915_WRITE(VLV_IMR, imr);
+	POSTING_READ(VLV_IMR);
+
 	i915_disable_lpe_pipestat(dev_priv, pipe);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 
