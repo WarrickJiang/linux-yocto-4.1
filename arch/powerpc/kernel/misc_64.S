@@ -502,7 +502,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_SMT)
 
 	bl	2f
 2:	mflr	r5
-	addi	r5,r5,kexec_flag-1b
+	addi	r5,r5,kexec_flag-2b
 
 99:	HMT_LOW
 #ifdef CONFIG_KEXEC		/* use no memory without kexec */
