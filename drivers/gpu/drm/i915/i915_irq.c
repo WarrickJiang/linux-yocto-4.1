@@ -2694,7 +2694,7 @@ static void gen8_disable_vblank(struct drm_device *dev, int pipe)
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 
-/* Added fo HDMI AUdio */
+/* Added for HDMI Audio */
 int i915_enable_hdmi_audio_int(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = (struct drm_i915_private *) dev->dev_private;
