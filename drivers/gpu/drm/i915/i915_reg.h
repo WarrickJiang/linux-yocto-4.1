@@ -1647,7 +1647,12 @@ enum skl_disp_power_wells {
 #define I915_WINVALID_INTERRUPT				(1<<1)
 #define I915_USER_INTERRUPT				(1<<1)
 #define I915_ASLE_INTERRUPT				(1<<0)
+#define I915_LPE_AUDIO_HDMI_STATUS_A	_MMIO(dev_priv->info.display_mmio_offset + 0x65064)
+#define I915_LPE_AUDIO_HDMI_STATUS_B	_MMIO(dev_priv->info.display_mmio_offset + 0x65864)
+#define I915_HDMI_AUDIO_UNDERRUN			(1UL<<31)
+#define I915_HDMI_AUDIO_BUFFER_DONE			(1UL<<29)
 #define I915_BSD_USER_INTERRUPT				(1<<25)
+#define I915_HDMI_AUDIO_UNDERRUN_ENABLE			(1UL<<15)
 
 #define GEN6_BSD_RNCID			0x12198
 
@@ -2911,6 +2916,7 @@ enum skl_disp_power_wells {
  * The same register may be used for SDVO or HDMI */
 #define GEN3_SDVOB	0x61140
 #define GEN3_SDVOC	0x61160
+#define HDMIB  (dev_priv->info.display_mmio_offset + 0x61140)
 #define GEN4_HDMIB	GEN3_SDVOB
 #define GEN4_HDMIC	GEN3_SDVOC
 #define CHV_HDMID	0x6116C
@@ -2918,6 +2924,7 @@ enum skl_disp_power_wells {
 #define PCH_HDMIB	PCH_SDVOB
 #define PCH_HDMIC	0xe1150
 #define PCH_HDMID	0xe1160
+#define PORT_ENABLE    (1 << 31)
 
 #define PORT_DFT_I9XX				0x61150
 #define   DC_BALANCE_RESET			(1 << 25)
