@@ -1,0 +1,241 @@
+This short blurb describes the support for HDMI audio on Atom
+platforms with the DMA/register-based interface (non HDAudio).
+
+1.Overview
+
+The HDMI transmitter operates in an image-oriented fashion. The major
+part of each frame is used by pixel data; non-pixel data is inserted
+in the data islands in the vertical and horizontal blanking
+spaces. Null packets are transmitted to fill the gaps when no data is
+available.
+
+Non-pixel data is abstracted though the concept of ‘Data Island’ which
+includes packet types such as
+
+- Audio Clock Regeneration. This packet conveys the information needed
+for the receiver to reconstruct a valid audio clock; it is sent every
+other frame.
+
+- Audio data (Audio Sample Packet, One Bit Audio Sample Packet, DST
+Audio Packet, HBR Audio packet)
+
+- Audio InfoFrame. This packets conveys configuration information on
+formats, sample rate, channel allocation, etc.
+
+2 Hardware description
+
+Although the HDMI block reuses many elements from the ‘normal’
+HDAudio-based design, the insertion of audio and configuration data
+into the HDMI frame is done differently, spefically the data is
+provided to the display controller with a DMA (instead of a serial
+link) and the control interface is done through register access
+(instead of HDAudio verbs). The interaction between audio and display
+driver remains similar, e.g. to handle hot-plug or EDID information.
+
+2.1 Data flow
+
+The audio rate is derived from the video frame rate and software must
+program the values of N/CTS registers. In some cases the audio clock is
+approximated with an offset that remains within the acceptable bounds
+of the standard. Based on N and CTS values and the actual video clock,
+the transmitter determines how many audio sample packets need to be
+inserted per frame.  These packets are read from memory using a DMA
+interface and inserted in the data island. In case the display format
+or resolution changes the values for N and CTS need to be adjusted.
+
+2.2 Data formats
+
+The supported audio frequencies are 32, 44.1, 48, 88.2, 96, 176.4 and
+192 kHz. 64 kHz is not supported in the HDMI standard.
+
+Two to eight channels can be transmitted. Odd number of channels will
+required the insertion of an additional dummy channel. This insertion
+is handled by software.
+
+Each transmitted PCM word is represented on 28 bits as described in
+the IEC60958 standard. Each sample conveys 24 bits of audio data,
+along with 4 configuration bits.
+
+Unsupported features:
+One bit audio sample packet
+DST audio packet
+High Bit Rate packets
+
+2.3 DMA operation
+
+The HDMI audio DMA controller handles a single context. It supports a
+four-entry descriptor register for source buffers and handles a single
+destination. The address and size of the source buffers can be
+programmed in the descriptors.
+
+The DMA controller transfers bursts of 16 32-bit words from memory (64
+bytes). These bursts are initiated when its FIFO level falls below a
+programmable watermark threshold. It is required that the buffers are
+aligned on a 64-byte boundary and are allocated from contiguous
+physical memory. They also need to be multiples of 64 bytes.
+
+The DMA controller enables the addition of buffers in descriptor
+registers during playback and issues an interrupt when a Transfer
+Complete is reached. When it has finished playing a buffer, it will
+move to the next descriptor. If no valid descriptors are found after a
+complete loop on the 4 descriptors, the hardware will go to a wait
+mode and report an under-run condition. As soon as the driver enables
+a new transfer the hardware will wake up. Note: it is not possible to
+program the DMA to fetch data completely autonomously without
+interrupts, after the 4 descriptors are used they need to be
+re-enabled by software.
+
+Should an underflow occur, the hardware can raise an underflow
+interrupt, will not transmit any audio packets and will insert null
+packets instead. On the software side, the audio device should be
+closed and the application restarted from a known position.
+
+2.4 Data representation in RAM
+
+Linear or compressed data are represented in the 24 least significant
+bits of a 32-bit word. No overlap between words is allowed. The
+hardware assumes that the 32-bits are written in little-endian
+format. Software needs to take care of format conversions when playing
+16-bit PCM (shift-left by eight bits)
+
+Layout 0 is used for stereo data, with left and right channels
+interleaved in memory. This layout is also used when transmitting
+compressed data over HDMI in IEC format
+
+For multichannel, Layout 1 is used. The order of each channel is
+defined as per CEA-861D. Since this order does not correspond to the
+native order of any known decoder, the hardware provides a 3-bit
+register for each channel. The channel position is modulo-added to the
+register. This provides a direct means to change the channel
+order. Note that the channel swap configuration needs to be aligned
+with the CA code transmitted to the receiver. Alternatively the
+channel swaps can be done in software.
+
+Only even number of channels will be transmitted. The software will
+interleave a dummy channel if needed; the CA codec transmitted in
+InfoFrames will only correspond to even number of channels.
+
+PCM Multichannel files will be stored in memory using the interleaved
+mode (L0, R0, C0, LFE0, L1, R1, C1, LFE1). In Layout 1, the software
+will need to generate 2, 4, 6 or 8 channels. By the same token, stereo
+files will always provide a multiple of 4 samples to allow for the
+same simplification for Layout 0.
+
+3. Configuration bits
+
+The U bit is not handled, as there is no real way to align the user
+bits with the audio data.
+
+Only the first 40 bits of the channel status are meaningful. The HDMI
+interface provides a two-word register which will be written with the
+relevant values by software. For each block, the first 40 bits are
+inserted one at a time in each frame, the remaining 152 bits are
+zeroed.
+
+Note that the same C bit value is transmitted for each subframe of
+each sub-packet. In theory, each channel could have independent C bits
+and some of the information transmitted to the receiver may be
+incorrect (channel number). To avoid any ambiguity for the receiver,
+the source number and channel number will be set by the software to
+zero, which is specified as ‘Do not take into account’ in IEC60958-3
+
+For multichannel PCM transmitted using Layout1, the same C bit is
+inserted in all valid subpackets. The same simplification is made by
+zero-ing out source number and channel number by software.  The V bit
+is defined by a register as well. By default all samples are marked as
+valid. The option of transmitting invalid samples is only meaningful
+is there is a change in the type of data transmitted, or a change of
+sampling rate. This is unlikely to occur as the audio transfers would
+be stopped and restarted by the HDMI audio device driver.
+
+The parity bit is inserted by the hardware on-the-fly. The software is
+not involved at all.
+
+4. Preambles
+
+Note that HDMI does not encode the 4-bit preamble, which instead is
+replaced with a “B” bit (start-of-block) in each Audio Sample
+packet. This preamble is added on-the-fly by the hardware.  The
+start-of-block bit is set for the first subpacket transmitted after
+AUD_ENABLE is set. This B bit should always coincide with the start of
+a DMA transfer.
+
+5. Programming model
+
+HDMI audio open:
+A. reset the audio function in AUD_HDMI_STATUS register
+B. Get the audio and video latencies, compute the relevant delay from
+EDID information
+C. write AUD_CONFIG register, except AudioEnable (sets User, Validity,
+sample flat, block begin, number of channels, format, layout)
+D. program ChannelStatus bits
+E. unmask the relevant interrupts in PIPEBSTAT register
+F. get frame rate from video driver
+G. program N, CTS
+H. program the FIFO threshold in AUD_BUF_CONFIG register
+I. program the delay for lip-sync in AUD_BUF_CONFIG register
+J. program channel swaps if need be
+K. write Audio Infoframe in local memory (all the 28 bytes need to be
+written, zero-out reserved bits/bytes)
+L. signal location of Infoframe in AUD_CNTL_ST (how is frequency
+transmitted)
+
+HDMI audio start:
+
+A. Inset a set of buffers in the circular list and mark them as
+valid. Set interrupt flag on all or some buffers, choice left to the
+user.
+B. Enable the audio, which starts the DMA requests to fill the audio
+FIFO immediately. The audio packets will actually be inserted in the
+next video frame. There is no transmission before the next video
+frame.
+
+HDMI audio pause: audio disable (continues transmitting packets until
+the current video frame is complete)
+
+HDMI audio resume: audio enable (resumes at the next frame, pointers
+kept, nothing lost)
+
+HDMI audio stop:
+A. disable audio
+B. reset audio module (Function Reset bit in HDMI audio status)
+
+The HDMI audio driver will need to communicate with the display
+driver, so that the latter provides the following information:
+- Display frame rate
+- EDID
+- HDCP failure
+
+The audio driver can keep track of playback progress by setting the
+interrupt flag for each of the 4 buffers. Alternatively, for a finer
+control and lower latency, the driver can read the buffer
+AUD_BUF_X_LENGTH register, which is initialized by software with the
+number of bytes to be transmitted and updated by hardware during DMA
+reads.
+
+6. Known issues:
+
+HDMI receivers tend to ignore control (‘C’) bits and detect the
+content type by parsing incoming data. As a result, receivers with
+support for DolbyDigital, DTS, etc, tend to take around one or two
+seconds to reliably lock on a set of sync words and avoid false
+detections. When content is played on such receivers, the first
+seconds of audio will not be heard.
+
+The only solution consists in playing dummy silent data as soon as the
+HDMI cable is connected. This solution assumes that the system mixer
+always uses the same configuration and does not change
+sample-rates. In Baytrail and Cherrytrail the HDMI controller can keep
+the audio link active by pushing zeroes as soon as DMA transfers are
+complete.
+
+The hardware also provides a ‘stop’ bit to avoid waiting for the end
+of a period elapsed to stop a playback.
+
+6. Differences with digital ouputs with HDaudio
+
+The channel status bits are programmed separately through a separate
+register. Only 40 bits out of the 192 can be programmed
+the parity is computed in hardware
+the validity bit is inserted by hardware.
+The ‘hdmi’ alsa-lib plugin cannot be used with this interface.
