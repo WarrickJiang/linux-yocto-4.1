@@ -21,7 +21,9 @@
 #ifdef CONFIG_OF_GPIO
 #include <linux/of_platform.h>
 #endif
+#ifdef CONFIG_ACPI
 #include <linux/acpi.h>
+#endif
 
 #define PCA953X_INPUT		0
 #define PCA953X_OUTPUT		1
@@ -105,6 +107,7 @@ struct pca953x_chip {
 	unsigned long driver_data;
 };
 
+#ifdef CONFIG_ACPI
 struct pca953x_info {
 	kernel_ulong_t driver_data;
 	void (*setup)(struct pca953x_chip *chip);
@@ -133,6 +136,7 @@ static const struct acpi_device_id pca953x_acpi_ids[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, pca953x_acpi_ids);
+#endif
 
 static inline struct pca953x_chip *to_pca(struct gpio_chip *gc)
 {
@@ -744,6 +748,7 @@ static int pca953x_probe(struct i2c_client *client,
 	if (id) {
 		chip->driver_data = id->driver_data;
 	} else {
+#ifdef CONFIG_ACPI
 		const struct acpi_device_id *id;
 		const struct pca953x_info *info;
 
@@ -758,6 +763,7 @@ static int pca953x_probe(struct i2c_client *client,
 		chip->driver_data = info->driver_data;
 		if (info->setup)
 			info->setup(chip);
+#endif
 	}
 
 	chip->chip_type = PCA_CHIP_TYPE(chip->driver_data);
@@ -852,7 +858,9 @@ static struct i2c_driver pca953x_driver = {
 	.driver = {
 		.name	= "pca953x",
 		.of_match_table = pca953x_dt_ids,
+#ifdef CONFIG_ACPI
 		.acpi_match_table = ACPI_PTR(pca953x_acpi_ids),
+#endif
 	},
 	.probe		= pca953x_probe,
 	.remove		= pca953x_remove,
