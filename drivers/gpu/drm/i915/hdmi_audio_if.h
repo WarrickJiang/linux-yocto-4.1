@@ -31,7 +31,6 @@
 #define MONITOR_TYPE_DVI  2
 
 extern int i915_hdmi_state;
-extern int i915_notify_had;
 
 enum had_caps_list {
 	HAD_GET_ELD = 1,
@@ -65,6 +64,7 @@ typedef int (*had_event_call_back) (enum had_event_type event_type,
 		void *ctxt_info);
 
 struct hdmi_audio_registers_ops {
+	int (*hdmi_audio_get_register_base)(uint32_t *reg_base);
 	int (*hdmi_audio_read_register)(uint32_t reg_addr, uint32_t *data);
 	int (*hdmi_audio_write_register)(uint32_t reg_addr, uint32_t data);
 	int (*hdmi_audio_read_modify)(uint32_t reg_addr, uint32_t data,
@@ -91,12 +91,13 @@ struct snd_intel_had_interface {
 
 struct hdmi_audio_priv {
 	struct drm_device *dev;
-	u32 hdmib_reg;
-
+	u32 hdmi_reg;
+	u32 hdmi_lpe_audio_reg;
 	bool is_hdcp_supported;
 	bool hdmi_hpd_connected;
 	int monitor_type;
 	void *context;
+	int pipe;
 };
 
 extern void i915_hdmi_audio_init(struct hdmi_audio_priv *p_hdmi_priv);
@@ -108,6 +109,8 @@ extern void mid_hdmi_audio_signal_event(struct drm_device *dev,
 		enum had_event_type event);
 
 /* Added for HDMI Audio */
+extern void hdmi_get_eld(uint8_t *eld);
+extern struct hdmi_audio_priv *get_hdmi_priv(void);
 extern void hdmi_get_eld(uint8_t *eld);
 extern int i915_enable_hdmi_audio_int(struct drm_device *dev);
 extern int i915_disable_hdmi_audio_int(struct drm_device *dev);

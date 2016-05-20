@@ -1012,6 +1012,8 @@ intel_rotation_90_or_270(unsigned int rotation)
 
 bool intel_wm_need_update(struct drm_plane *plane,
 			  struct drm_plane_state *state);
+void chv_set_lpe_audio_reg_pipe(struct drm_device *dev,
+                               int encoder_type, enum port port);
 
 /* shared dpll functions */
 struct intel_shared_dpll *intel_crtc_to_shared_dpll(struct intel_crtc *crtc);

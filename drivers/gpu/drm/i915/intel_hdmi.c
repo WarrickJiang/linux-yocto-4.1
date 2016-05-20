@@ -38,6 +38,8 @@
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 
+static int i915_notify_had;
+
 static struct drm_device *intel_hdmi_to_dev(struct intel_hdmi *intel_hdmi)
 {
 	return hdmi_to_dig_port(intel_hdmi)->base.base.dev;
@@ -1255,6 +1257,11 @@ intel_hdmi_detect(struct drm_connector *connector, bool force)
 		if (intel_hdmi->has_audio)
 			i915_notify_had = 1;
 	} else {
+		struct intel_digital_port *intel_dig_port =
+				hdmi_to_dig_port(intel_hdmi);
+
+		chv_set_lpe_audio_reg_pipe(dev, INTEL_OUTPUT_HDMI,
+					intel_dig_port->port);
 		/* Send a disconnect event to audio */
 		if (inform_audio) {
 			DRM_DEBUG_DRIVER("Sending event to audio");
@@ -1289,6 +1296,11 @@ intel_hdmi_force(struct drm_connector *connector)
 static int intel_hdmi_get_modes(struct drm_connector *connector)
 {
 	struct edid *edid;
+	struct intel_encoder *intel_encoder = intel_attached_encoder(connector);
+	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&intel_encoder->base);
+	struct intel_digital_port *intel_dig_port =
+				hdmi_to_dig_port(intel_hdmi);
+	struct drm_device *dev = connector->dev;
 	int ret;
 	struct drm_i915_private *dev_priv = connector->dev->dev_private;
 
@@ -1299,6 +1311,8 @@ static int intel_hdmi_get_modes(struct drm_connector *connector)
 	ret = intel_connector_update_modes(connector, edid);
 
 	if (i915_notify_had) {
+		chv_set_lpe_audio_reg_pipe(dev, INTEL_OUTPUT_HDMI,
+					intel_dig_port->port);
 		mid_hdmi_audio_signal_event(dev_priv->dev,
 			HAD_EVENT_HOT_PLUG);
 		i915_notify_had = 0;
@@ -2010,7 +2024,17 @@ void intel_hdmi_init(struct drm_device *dev, int hdmi_reg, enum port port)
 		pr_err("failed to allocate memory");
 	} else {
 		hdmi_priv->dev = dev;
-		hdmi_priv->hdmib_reg = HDMIB;
+		if (IS_CHERRYVIEW(dev)) { 
+			// FIXME: plb: looks wrong
+			// mapping between stream and Hdmi port ?
+			hdmi_priv->hdmi_reg = HDMIC;
+			hdmi_priv->hdmi_lpe_audio_reg =
+					I915_HDMI_AUDIO_LPE_C_CONFIG;
+		} else {
+			hdmi_priv->hdmi_reg = HDMIB;
+			hdmi_priv->hdmi_lpe_audio_reg =
+					I915_HDMI_AUDIO_LPE_A_CONFIG;
+		}
 		hdmi_priv->monitor_type = MONITOR_TYPE_HDMI;
 		hdmi_priv->is_hdcp_supported = true;
 		i915_hdmi_audio_init(hdmi_priv);
