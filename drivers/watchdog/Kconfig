@@ -96,6 +96,15 @@ config DA9063_WATCHDOG
 
 	  This driver can be built as a module. The module name is da9063_wdt.
 
+config DA9062_WATCHDOG
+	tristate "Dialog DA9062 Watchdog"
+	depends on MFD_DA9062
+	select WATCHDOG_CORE
+	help
+	  Support for the watchdog in the DA9062 PMIC.
+
+	  This driver can be built as a module. The module name is da9062_wdt.
+
 config GPIO_WATCHDOG
 	tristate "Watchdog device controlled through GPIO-line"
 	depends on OF_GPIO
@@ -470,6 +479,18 @@ config SIRFSOC_WATCHDOG
 	  Support for CSR SiRFprimaII and SiRFatlasVI watchdog. When
 	  the watchdog triggers the system will be reset.
 
+config ST_LPC_WATCHDOG
+	tristate "STMicroelectronics LPC Watchdog"
+	depends on ARCH_STI
+	depends on OF
+	select WATCHDOG_CORE
+	help
+	  Say Y here to include STMicroelectronics Low Power Controller
+	  (LPC) based Watchdog timer support.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called st_lpc_wdt.
+
 config TEGRA_WATCHDOG
 	tristate "Tegra watchdog"
 	depends on (ARCH_TEGRA || COMPILE_TEST) && HAS_IOMEM
@@ -513,6 +534,16 @@ config MEDIATEK_WATCHDOG
 	  in Mediatek SoCs.
 	  To compile this driver as a module, choose M here: the
 	  module will be called mtk_wdt.
+
+config DIGICOLOR_WATCHDOG
+	tristate "Conexant Digicolor SoCs watchdog support"
+	depends on ARCH_DIGICOLOR
+	select WATCHDOG_CORE
+	help
+	  Say Y here to include support for the watchdog timer
+	  in Conexant Digicolor SoCs.
+	  To compile this driver as a module, choose M here: the
+	  module will be called digicolor_wdt.
 
 # AVR32 Architecture
 
