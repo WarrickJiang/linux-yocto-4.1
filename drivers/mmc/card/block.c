@@ -384,6 +384,24 @@ out:
 	return ERR_PTR(err);
 }
 
+static int mmc_blk_ioctl_copy_to_user(struct mmc_ioc_cmd __user *ic_ptr,
+				      struct mmc_blk_ioc_data *idata)
+{
+	struct mmc_ioc_cmd *ic = &idata->ic;
+
+	if (copy_to_user(&(ic_ptr->response), ic->response,
+			 sizeof(ic->response)))
+		return -EFAULT;
+
+	if (!idata->ic.write_flag) {
+		if (copy_to_user((void __user *)(unsigned long)ic->data_ptr,
+				 idata->buf, idata->buf_bytes))
+			return -EFAULT;
+	}
+
+	return 0;
+}
+
 static int ioctl_rpmb_card_status_poll(struct mmc_card *card, u32 *status,
 				       u32 retries_max)
 {
@@ -444,12 +462,9 @@ out:
 	return err;
 }
 
-static int mmc_blk_ioctl_cmd(struct block_device *bdev,
-	struct mmc_ioc_cmd __user *ic_ptr)
+static int __mmc_blk_ioctl_cmd(struct mmc_card *card, struct mmc_blk_data *md,
+			       struct mmc_blk_ioc_data *idata)
 {
-	struct mmc_blk_ioc_data *idata;
-	struct mmc_blk_data *md;
-	struct mmc_card *card;
 	struct mmc_command cmd = {0};
 	struct mmc_data data = {0};
 	struct mmc_request mrq = {NULL};
@@ -458,32 +473,11 @@ static int mmc_blk_ioctl_cmd(struct block_device *bdev,
 	int is_rpmb = false;
 	u32 status = 0;
 
-	/*
-	 * The caller must have CAP_SYS_RAWIO, and must be calling this on the
-	 * whole block device, not on a partition.  This prevents overspray
-	 * between sibling partitions.
-	 */
-	if ((!capable(CAP_SYS_RAWIO)) || (bdev != bdev->bd_contains))
-		return -EPERM;
-
-	idata = mmc_blk_ioctl_copy_from_user(ic_ptr);
-	if (IS_ERR(idata))
-		return PTR_ERR(idata);
-
-	md = mmc_blk_get(bdev->bd_disk);
-	if (!md) {
-		err = -EINVAL;
-		goto cmd_err;
-	}
+	if (!card || !md || !idata)
+		return -EINVAL;
 
 	if (md->area_type & MMC_BLK_DATA_AREA_RPMB)
 		is_rpmb = true;
-
-	card = md->queue.card;
-	if (IS_ERR(card)) {
-		err = PTR_ERR(card);
-		goto cmd_done;
-	}
 
 	cmd.opcode = idata->ic.opcode;
 	cmd.arg = idata->ic.arg;
@@ -527,23 +521,21 @@ static int mmc_blk_ioctl_cmd(struct block_device *bdev,
 
 	mrq.cmd = &cmd;
 
-	mmc_get_card(card);
-
 	err = mmc_blk_part_switch(card, md);
 	if (err)
-		goto cmd_rel_host;
+		return err;
 
 	if (idata->ic.is_acmd) {
 		err = mmc_app_cmd(card->host, card);
 		if (err)
-			goto cmd_rel_host;
+			return err;
 	}
 
 	if (is_rpmb) {
 		err = mmc_set_blockcount(card, data.blocks,
 			idata->ic.write_flag & (1 << 31));
 		if (err)
-			goto cmd_rel_host;
+			return err;
 	}
 
 	if ((MMC_EXTRACT_INDEX_FROM_ARG(cmd.arg) == EXT_CSD_SANITIZE_START) &&
@@ -554,7 +546,7 @@ static int mmc_blk_ioctl_cmd(struct block_device *bdev,
 			pr_err("%s: ioctl_do_sanitize() failed. err = %d",
 			       __func__, err);
 
-		goto cmd_rel_host;
+		return err;
 	}
 
 	mmc_wait_for_req(card->host, &mrq);
@@ -562,14 +554,12 @@ static int mmc_blk_ioctl_cmd(struct block_device *bdev,
 	if (cmd.error) {
 		dev_err(mmc_dev(card->host), "%s: cmd error %d\n",
 						__func__, cmd.error);
-		err = cmd.error;
-		goto cmd_rel_host;
+		return cmd.error;
 	}
 	if (data.error) {
 		dev_err(mmc_dev(card->host), "%s: data error %d\n",
 						__func__, data.error);
-		err = data.error;
-		goto cmd_rel_host;
+		return data.error;
 	}
 
 	/*
@@ -579,18 +569,7 @@ static int mmc_blk_ioctl_cmd(struct block_device *bdev,
 	if (idata->ic.postsleep_min_us)
 		usleep_range(idata->ic.postsleep_min_us, idata->ic.postsleep_max_us);
 
-	if (copy_to_user(&(ic_ptr->response), cmd.resp, sizeof(cmd.resp))) {
-		err = -EFAULT;
-		goto cmd_rel_host;
-	}
-
-	if (!idata->ic.write_flag) {
-		if (copy_to_user((void __user *)(unsigned long) idata->ic.data_ptr,
-						idata->buf, idata->buf_bytes)) {
-			err = -EFAULT;
-			goto cmd_rel_host;
-		}
-	}
+	memcpy(&(idata->ic.response), cmd.resp, sizeof(cmd.resp));
 
 	if (is_rpmb) {
 		/*
@@ -604,8 +583,45 @@ static int mmc_blk_ioctl_cmd(struct block_device *bdev,
 					__func__, status, err);
 	}
 
-cmd_rel_host:
+	return err;
+}
+
+static int mmc_blk_ioctl_cmd(struct block_device *bdev,
+			     struct mmc_ioc_cmd __user *ic_ptr)
+{
+	struct mmc_blk_ioc_data *idata;
+	struct mmc_blk_data *md;
+	struct mmc_card *card;
+	int err;
+
+	idata = mmc_blk_ioctl_copy_from_user(ic_ptr);
+	if (IS_ERR(idata))
+		return PTR_ERR(idata);
+
+	md = mmc_blk_get(bdev->bd_disk);
+	if (!md) {
+		err = -EINVAL;
+		goto cmd_err;
+	}
+
+	card = md->queue.card;
+	if (IS_ERR(card)) {
+		err = PTR_ERR(card);
+		goto cmd_done;
+	}
+
+	mmc_get_card(card);
+
+	err = __mmc_blk_ioctl_cmd(card, md, idata);
+
+	/* Always switch back to main area after RPMB access */
+	if (md->area_type & MMC_BLK_DATA_AREA_RPMB)
+		mmc_blk_part_switch(card, dev_get_drvdata(&card->dev));
+
 	mmc_put_card(card);
+
+	if (!err)
+		err = mmc_blk_ioctl_copy_to_user(ic_ptr, idata);
 
 cmd_done:
 	mmc_blk_put(md);
@@ -615,13 +631,101 @@ cmd_err:
 	return err;
 }
 
+static int mmc_blk_ioctl_multi_cmd(struct block_device *bdev,
+				   struct mmc_ioc_multi_cmd __user *user)
+{
+	struct mmc_blk_ioc_data **idata = NULL;
+	struct mmc_ioc_cmd __user *cmds = user->cmds;
+	struct mmc_card *card;
+	struct mmc_blk_data *md;
+	int i, err = -EFAULT;
+	__u64 num_of_cmds;
+
+	if (copy_from_user(&num_of_cmds, &user->num_of_cmds,
+			   sizeof(num_of_cmds)))
+		return -EFAULT;
+
+	if (num_of_cmds > MMC_IOC_MAX_CMDS)
+		return -EINVAL;
+
+	idata = kcalloc(num_of_cmds, sizeof(*idata), GFP_KERNEL);
+	if (!idata)
+		return -ENOMEM;
+
+	for (i = 0; i < num_of_cmds; i++) {
+		idata[i] = mmc_blk_ioctl_copy_from_user(&cmds[i]);
+		if (IS_ERR(idata[i])) {
+			err = PTR_ERR(idata[i]);
+			num_of_cmds = i;
+			goto cmd_err;
+		}
+	}
+
+	md = mmc_blk_get(bdev->bd_disk);
+	if (!md)
+		goto cmd_err;
+
+	card = md->queue.card;
+	if (IS_ERR(card)) {
+		err = PTR_ERR(card);
+		goto cmd_done;
+	}
+
+	mmc_get_card(card);
+
+	for (i = 0; i < num_of_cmds; i++) {
+		err = __mmc_blk_ioctl_cmd(card, md, idata[i]);
+		if (err) {
+			mmc_put_card(card);
+			goto cmd_done;
+		}
+	}
+
+	/* Always switch back to main area after RPMB access */
+	if (md->area_type & MMC_BLK_DATA_AREA_RPMB)
+		mmc_blk_part_switch(card, dev_get_drvdata(&card->dev));
+
+	mmc_put_card(card);
+
+	/* copy to user if data and response */
+	for (i = 0; i < num_of_cmds; i++) {
+		err = mmc_blk_ioctl_copy_to_user(&cmds[i], idata[i]);
+		if (err)
+			break;
+	}
+
+cmd_done:
+	mmc_blk_put(md);
+cmd_err:
+	for (i = 0; i < num_of_cmds; i++) {
+		kfree(idata[i]->buf);
+		kfree(idata[i]);
+	}
+	kfree(idata);
+	return err;
+}
+
 static int mmc_blk_ioctl(struct block_device *bdev, fmode_t mode,
 	unsigned int cmd, unsigned long arg)
 {
-	int ret = -EINVAL;
-	if (cmd == MMC_IOC_CMD)
-		ret = mmc_blk_ioctl_cmd(bdev, (struct mmc_ioc_cmd __user *)arg);
-	return ret;
+	/*
+	 * The caller must have CAP_SYS_RAWIO, and must be calling this on the
+	 * whole block device, not on a partition.  This prevents overspray
+	 * between sibling partitions.
+	 */
+	if ((!capable(CAP_SYS_RAWIO)) || (bdev != bdev->bd_contains))
+		return -EPERM;
+
+	switch (cmd) {
+	case MMC_IOC_CMD:
+		return mmc_blk_ioctl_cmd(bdev,
+				(struct mmc_ioc_cmd __user *)arg);
+	case MMC_IOC_MULTI_CMD:
+		return mmc_blk_ioctl_multi_cmd(bdev,
+				(struct mmc_ioc_multi_cmd __user *)arg);
+	default:
+		return -EINVAL;
+	}
 }
 
 #ifdef CONFIG_COMPAT
@@ -655,16 +759,25 @@ static inline int mmc_blk_part_switch(struct mmc_card *card,
 	if (mmc_card_mmc(card)) {
 		u8 part_config = card->ext_csd.part_config;
 
+		if (md->part_type == EXT_CSD_PART_CONFIG_ACC_RPMB)
+			mmc_retune_pause(card->host);
+
 		part_config &= ~EXT_CSD_PART_CONFIG_ACC_MASK;
 		part_config |= md->part_type;
 
 		ret = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
 				 EXT_CSD_PART_CONFIG, part_config,
 				 card->ext_csd.part_time);
-		if (ret)
+		if (ret) {
+			if (md->part_type == EXT_CSD_PART_CONFIG_ACC_RPMB)
+				mmc_retune_unpause(card->host);
 			return ret;
+		}
 
 		card->ext_csd.part_config = part_config;
+
+		if (main_md->part_curr == EXT_CSD_PART_CONFIG_ACC_RPMB)
+			mmc_retune_unpause(card->host);
 	}
 
 	main_md->part_curr = md->part_type;
