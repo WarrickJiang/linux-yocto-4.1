@@ -22,14 +22,14 @@
 #include "sdhci-pltfm.h"
 #include "sdhci-esdhc.h"
 
-#if defined CONFIG_PPC_OF
+#if defined CONFIG_PPC
 #include <asm/mpc85xx.h>
 #endif
 
 #define VENDOR_V_22	0x12
 #define VENDOR_V_23	0x13
 
-#if defined CONFIG_PPC_OF
+#if defined CONFIG_PPC
 static u32 svr;
 #endif
 
@@ -77,7 +77,7 @@ static u16 esdhc_readw(struct sdhci_host *host, int reg)
 	else
 		ret = (sdhci_32bs_readl(host, base) >> shift) & 0xffff;
 
-#if defined CONFIG_PPC_OF	
+#if defined CONFIG_PPC	
 	/* T4240-R1.0-R2.0 had a incorrect vendor version and spec version */
 	if ((reg == SDHCI_HOST_VERSION) &&
 			((SVR_SOC_VER(svr) == SVR_T4240) &&
@@ -216,7 +216,7 @@ static void esdhc_writeb(struct sdhci_host *host, u8 val, int reg)
 		if (!host->pwr || !val)
 			return;
 
-#if defined CONFIG_PPC_OF
+#if defined CONFIG_PPC
 		if (SVR_SOC_VER(svr) == SVR_T4240) {
 			u8 vol;
 
@@ -270,7 +270,7 @@ static void esdhci_of_adma_workaround(struct sdhci_host *host, u32 intmask)
 		return;
 	}
 
-#if defined CONFIG_PPC_OF
+#if defined CONFIG_PPC
 	/*
 	 * Check for A-004388: eSDHC DMA might not stop if error
 	 * occurs on system transaction
@@ -462,7 +462,7 @@ static void esdhc_of_platform_init(struct sdhci_host *host)
 {
 	u32 vvn;
 
-#if defined CONFIG_PPC_OF	
+#if defined CONFIG_PPC	
 	svr =  mfspr(SPRN_SVR);
 #endif	
 	vvn = esdhc_readl(host, SDHCI_SLOT_INT_STATUS);
@@ -473,7 +473,7 @@ static void esdhc_of_platform_init(struct sdhci_host *host)
 	if (vvn > VENDOR_V_22)
 		host->quirks &= ~SDHCI_QUIRK_NO_BUSY_IRQ;
 
-#if defined CONFIG_PPC_OF
+#if defined CONFIG_PPC
 	/*
 	 * Check for A-005055: A glitch is generated on the card clock
 	 * due to software reset or a clock change
