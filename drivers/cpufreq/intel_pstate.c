@@ -80,6 +80,7 @@ struct pstate_data {
 	int	max_pstate;
 	int	scaling;
 	int	turbo_pstate;
+	u64	turbo_ratio_limit;
 };
 
 struct vid_data {
@@ -129,6 +130,9 @@ struct pstate_funcs {
 	int (*get_max)(void);
 	int (*get_min)(void);
 	int (*get_turbo)(void);
+	u64 (*get_turbo_ratio_limit)(struct cpudata *);
+	int (*set_turbo_ratio_limit)(struct cpudata *, u64, u64);
+	void (*adjust_states)(struct cpudata *);
 	int (*get_scaling)(void);
 	void (*set)(struct cpudata*, int pstate);
 	void (*get_vid)(struct cpudata *);
@@ -425,6 +429,23 @@ static ssize_t store_max_perf_pct(struct kobject *a, struct attribute *b,
 	limits.max_perf_pct = min(limits.max_policy_pct, limits.max_sysfs_pct);
 	limits.max_perf = div_fp(int_tofp(limits.max_perf_pct), int_tofp(100));
 
+	if (pstate_funcs.set_turbo_ratio_limit) {
+		int max_perf_adj;
+		struct cpudata *cpu = all_cpu_data[0];
+
+		if (limits.max_sysfs_pct == 100)
+			max_perf_adj = cpu->pstate.turbo_ratio_limit;
+		else
+			max_perf_adj = fp_toint(mul_fp(int_tofp(
+					cpu->pstate.turbo_ratio_limit & 0xff),
+					limits.max_perf));
+
+		if (max_perf_adj > cpu->pstate.max_pstate)
+			pstate_funcs.set_turbo_ratio_limit(cpu,
+						cpu->pstate.turbo_ratio_limit,
+						max_perf_adj);
+	}
+
 	if (hwp_active)
 		intel_pstate_hwp_set();
 	return count;
@@ -601,6 +622,26 @@ static int core_get_turbo_pstate(void)
 	return ret;
 }
 
+static void core_adjust_states(struct cpudata *cpudata)
+{
+	u64 value;
+
+	if (rdmsrl_safe(MSR_TURBO_ACTIVATION_RATIO, &value))
+		return;
+
+	if (value & BIT(31))
+		return; /* locked */
+
+	if (cpudata->pstate.max_pstate > value) {
+		int err;
+
+		value = cpudata->pstate.max_pstate & 0xff;
+		err = wrmsrl_safe(MSR_TURBO_ACTIVATION_RATIO, value);
+		if (err)
+			pr_err("Adjust MSR_TURBO_ACTIVATION_RATIO failed\n");
+	}
+}
+
 static inline int core_get_scaling(void)
 {
 	return 100000;
@@ -615,6 +656,55 @@ static void core_set_pstate(struct cpudata *cpudata, int pstate)
 		val |= (u64)1 << 32;
 
 	wrmsrl_on_cpu(cpudata->cpu, MSR_IA32_PERF_CTL, val);
+}
+
+static u64 core_get_turbo_ratio_limit(struct cpudata *cpudata)
+{
+	u64 value;
+
+	rdmsrl(MSR_NHM_TURBO_RATIO_LIMIT, value);
+
+	return value;
+}
+
+static int core_set_turbo_ratio_limit(struct cpudata *cpudata, u64 def_ratio,
+				      u64 new_ratio)
+{
+	u64 value;
+
+	rdmsrl(MSR_PLATFORM_INFO, value);
+	if (value & BIT(28)) {
+		u64 ratio = 0;
+		u64 out_ratio = 0;
+		u8 max_ratio = new_ratio & 0xff;
+		int i;
+		/*
+		 * If caller provided reduced max ratio (one core active)
+		 * then use this for all other ratios, which are more
+		 * than the default ratio for those many cores active
+		 * for example if default ratio is 0x1a1b1c1d and new ratio
+		 * is 0x1b, then resultant ratio will be 0x1a1b1b1b
+		 */
+		for (i = 0; i < sizeof(def_ratio); ++i) {
+			if (def_ratio & 0xff) {
+				if (new_ratio & 0xff)
+					ratio = new_ratio & 0xff;
+				else {
+					if ((def_ratio & 0xff) > max_ratio)
+						ratio = max_ratio;
+					else
+						ratio = def_ratio & 0xff;
+				}
+				out_ratio |= (ratio << (i * 8));
+			}
+			def_ratio >>= 8;
+			new_ratio >>= 8;
+		}
+		wrmsrl(MSR_NHM_TURBO_RATIO_LIMIT, out_ratio);
+		return 0;
+	}
+
+	return -EPERM;
 }
 
 static int knl_get_turbo_pstate(void)
@@ -645,6 +735,9 @@ static struct cpu_defaults core_params = {
 		.get_turbo = core_get_turbo_pstate,
 		.get_scaling = core_get_scaling,
 		.set = core_set_pstate,
+		.adjust_states = core_adjust_states,
+		.get_turbo_ratio_limit = core_get_turbo_ratio_limit,
+		.set_turbo_ratio_limit = core_set_turbo_ratio_limit,
 	},
 };
 
@@ -732,12 +825,19 @@ static void intel_pstate_get_cpu_pstates(struct cpudata *cpu)
 {
 	cpu->pstate.min_pstate = pstate_funcs.get_min();
 	cpu->pstate.max_pstate = pstate_funcs.get_max();
-	cpu->pstate.turbo_pstate = pstate_funcs.get_turbo();
+	if (!cpu->pstate.turbo_pstate)
+		cpu->pstate.turbo_pstate = pstate_funcs.get_turbo();
 	cpu->pstate.scaling = pstate_funcs.get_scaling();
-
+	if (pstate_funcs.get_turbo_ratio_limit &&
+	    !cpu->pstate.turbo_ratio_limit)
+		cpu->pstate.turbo_ratio_limit =
+			pstate_funcs.get_turbo_ratio_limit(cpu);
 	if (pstate_funcs.get_vid)
 		pstate_funcs.get_vid(cpu);
 	intel_pstate_set_pstate(cpu, cpu->pstate.min_pstate, false);
+
+	if (pstate_funcs.adjust_states)
+		pstate_funcs.adjust_states(cpu);
 }
 
 static inline void intel_pstate_calc_busy(struct cpudata *cpu)
@@ -913,6 +1013,7 @@ static const struct x86_cpu_id intel_pstate_cpu_ids[] = {
 	ICPU(0x4c, byt_params),
 	ICPU(0x4e, core_params),
 	ICPU(0x4f, core_params),
+	ICPU(0x5c, core_params),
 	ICPU(0x5e, core_params),
 	ICPU(0x56, core_params),
 	ICPU(0x57, knl_params),
@@ -943,6 +1044,20 @@ static int intel_pstate_init_cpu(unsigned int cpunum)
 		intel_pstate_hwp_enable(cpu);
 
 	intel_pstate_get_cpu_pstates(cpu);
+	/* readjust turbo limit ratio after resume or hotplug */
+	if (limits.max_sysfs_pct != 100 &&
+	    pstate_funcs.set_turbo_ratio_limit) {
+		int max_perf_adj;
+
+		max_perf_adj = fp_toint(mul_fp(int_tofp(
+					cpu->pstate.turbo_ratio_limit & 0xff),
+					limits.max_perf));
+
+		if (max_perf_adj > cpu->pstate.max_pstate)
+			pstate_funcs.set_turbo_ratio_limit(cpu,
+						cpu->pstate.turbo_ratio_limit,
+						max_perf_adj);
+	}
 
 	init_timer_deferrable(&cpu->timer);
 	cpu->timer.data = (unsigned long)cpu;
@@ -1108,6 +1223,9 @@ static void copy_cpu_funcs(struct pstate_funcs *funcs)
 	pstate_funcs.get_scaling = funcs->get_scaling;
 	pstate_funcs.set       = funcs->set;
 	pstate_funcs.get_vid   = funcs->get_vid;
+	pstate_funcs.adjust_states   = funcs->adjust_states;
+	pstate_funcs.set_turbo_ratio_limit = funcs->set_turbo_ratio_limit;
+	pstate_funcs.get_turbo_ratio_limit = funcs->get_turbo_ratio_limit;
 }
 
 #if IS_ENABLED(CONFIG_ACPI)
