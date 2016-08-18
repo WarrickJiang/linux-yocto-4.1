@@ -1210,7 +1210,7 @@ int __init sco_init(void)
 		goto error;
 	}
 
-	err = bt_procfs_init(&init_net, "sco", &sco_sk_list, NULL);
+	err = bt_procfs_init(current->nsproxy->net_ns, "sco", &sco_sk_list, NULL);
 	if (err < 0) {
 		BT_ERR("Failed to create SCO proc file");
 		bt_sock_unregister(BTPROTO_SCO);
@@ -1236,7 +1236,7 @@ error:
 
 void sco_exit(void)
 {
-	bt_procfs_cleanup(&init_net, "sco");
+	bt_procfs_cleanup(current->nsproxy->net_ns, "sco");
 
 	debugfs_remove(sco_debugfs);
 

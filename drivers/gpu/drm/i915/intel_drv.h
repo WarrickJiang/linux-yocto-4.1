@@ -569,6 +569,14 @@ struct cxsr_latency {
 #define to_intel_plane_state(x) container_of(x, struct intel_plane_state, base)
 #define intel_fb_obj(x) (x ? to_intel_framebuffer(x)->obj : NULL)
 
+/* HDMI bits are shared with the DP bits */
+#define   HDMIB_HOTPLUG_LIVE_STATUS             (1 << 29)
+#define   HDMIC_HOTPLUG_LIVE_STATUS             (1 << 28)
+#define   HDMID_HOTPLUG_LIVE_STATUS             (1 << 27)
+#define   HDMI_LIVE_STATUS_BASE			30
+#define   HDMI_LIVE_STATUS_DELAY_STEP		10
+#define   HDMI_EDID_RETRY_COUNT			3
+
 struct intel_hdmi {
 	u32 hdmi_reg;
 	int ddc_bus;
@@ -579,6 +587,9 @@ struct intel_hdmi {
 	enum hdmi_force_audio force_audio;
 	bool rgb_quant_range_selectable;
 	enum hdmi_picture_aspect aspect_ratio;
+	struct edid *edid;
+	uint32_t edid_mode_count;
+	
 	void (*write_infoframe)(struct drm_encoder *encoder,
 				enum hdmi_infoframe_type type,
 				const void *frame, ssize_t len);
@@ -1001,6 +1012,8 @@ intel_rotation_90_or_270(unsigned int rotation)
 
 bool intel_wm_need_update(struct drm_plane *plane,
 			  struct drm_plane_state *state);
+void chv_set_lpe_audio_reg_pipe(struct drm_device *dev,
+                               int encoder_type, enum port port);
 
 /* shared dpll functions */
 struct intel_shared_dpll *intel_crtc_to_shared_dpll(struct intel_crtc *crtc);

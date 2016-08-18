@@ -1625,7 +1625,7 @@ int __init l2cap_init_sockets(void)
 		goto error;
 	}
 
-	err = bt_procfs_init(&init_net, "l2cap", &l2cap_sk_list,
+	err = bt_procfs_init(current->nsproxy->net_ns, "l2cap", &l2cap_sk_list,
 			     NULL);
 	if (err < 0) {
 		BT_ERR("Failed to create L2CAP proc file");
@@ -1644,7 +1644,7 @@ error:
 
 void l2cap_cleanup_sockets(void)
 {
-	bt_procfs_cleanup(&init_net, "l2cap");
+	bt_procfs_cleanup(current->nsproxy->net_ns, "l2cap");
 	bt_sock_unregister(BTPROTO_L2CAP);
 	proto_unregister(&l2cap_proto);
 }
