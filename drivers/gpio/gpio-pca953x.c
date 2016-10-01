@@ -82,6 +82,12 @@ static const struct i2c_device_id pca953x_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, pca953x_id);
 
+static const struct acpi_device_id pca953x_acpi_ids[] = {
+	{ "INT3491", 16 | PCA953X_TYPE | PCA_INT, },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, pca953x_acpi_ids);
+
 #define MAX_BANK 5
 #define BANK_SZ 8
 
@@ -751,7 +757,6 @@ static int pca953x_probe(struct i2c_client *client,
 	} else {
 #ifdef CONFIG_ACPI
 		const struct acpi_device_id *id;
-		const struct pca953x_info *info;
 
 		id = acpi_match_device(pca953x_acpi_ids, &client->dev);
 		if (!id)
