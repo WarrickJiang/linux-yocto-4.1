@@ -29,6 +29,7 @@
 #include <linux/hrtimer.h>
 #include <linux/ktime.h>
 #include <linux/input/lng2dm.h>
+#include <linux/acpi.h>
 
 #ifdef CONFIG_OF
 #include <linux/of.h>
@@ -1380,11 +1381,18 @@ static const struct i2c_device_id lng2dm_id[]
 MODULE_DEVICE_TABLE(i2c, lng2dm_id);
 
 
+static const struct acpi_device_id lng2dm_acpi_match[] = {
+        { "SMO8A90", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, lng2dm_acpi_match);
+
 static struct i2c_driver lng2dm_driver = {
 	.driver = {
 			.owner = THIS_MODULE,
 			.name = LNG2DM_DEV_NAME,
 			.pm = LNG2DM_PM_OPS,
+			.acpi_match_table = ACPI_PTR(lng2dm_acpi_match),
 		  },
 	.probe = lng2dm_probe,
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(3,3,0)
