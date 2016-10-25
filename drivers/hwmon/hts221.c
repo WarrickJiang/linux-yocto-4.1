@@ -138,12 +138,8 @@ Revision 0.0.5 04/19/2016
 
 #define REG_DEF_BDU             (0x04)
 
-#ifndef DEBUG
-#define DEBUG
-#endif
-
-#define BDU
-
+//TC Make sure DEBUG is NOT defined
+#undef DEBUG
 
 #define HTS221_DEV_NAME_H        "hts221_humidity"
 #define HTS221_DEV_NAME_T        "hts221_temperature"
