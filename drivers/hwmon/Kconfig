@@ -1694,6 +1694,13 @@ config YL_HTS221_HUMITURE
 	help
 	  Say yes here to build support for ST Electric HTS221 Humidity Driver.
 
+config YL_LPS22HB_SENSOR
+	tristate "ST LPS22HB Pressure / Temperature Sensor driver"
+	default n
+	depends on I2C
+	help
+	  Say yes here to build support for ST Electric LPS22HB Pressure / Temperature Driver.
+
 config SENSORS_WM831X
 	tristate "WM831x PMICs"
 	depends on MFD_WM831X
