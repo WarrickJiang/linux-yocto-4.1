@@ -1701,6 +1701,12 @@ config YL_LPS22HB_SENSOR
 	help
 	  Say yes here to build support for ST Electric LPS22HB Pressure / Temperature Driver.
 
+config YL_LNG2DM_SENSOR
+        tristate "ST LNG2DM Inertial Accelerometer Sensor"
+        depends on INPUT && I2C
+        help
+          Say Y here to enable STMicroelectronics LNG2DM Accelerometer sensor
+
 config SENSORS_WM831X
 	tristate "WM831x PMICs"
 	depends on MFD_WM831X
