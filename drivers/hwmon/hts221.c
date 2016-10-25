@@ -76,6 +76,7 @@ Revision 0.0.5 04/19/2016
 #include <linux/irq.h>
 #include <linux/hrtimer.h>
 #include <linux/ktime.h>
+#include <linux/acpi.h>
 
 #include <linux/delay.h>
 #include <linux/version.h>
@@ -1570,17 +1571,24 @@ static const struct i2c_device_id hts221_id[]
 
 MODULE_DEVICE_TABLE(i2c, hts221_id);
 
+static const struct acpi_device_id hts221_acpi_match[] = {
+        { "SMO9100", 0 },
+        { }
+};
+MODULE_DEVICE_TABLE(acpi, hts221_acpi_match);
+
 static struct i2c_driver hts221_driver = {
         .driver = {
                         .owner = THIS_MODULE,
                         .name = HTS221_DEV_NAME,
-						.pm = HTS221_PM_OPS,
+                        .pm = HTS221_PM_OPS,
+                        .acpi_match_table = ACPI_PTR(hts221_acpi_match),
                   },
         .probe = hts221_probe,
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(3,8,0)
         .remove = __devexit_p(hts221_remove),
 #else
-		.remove = hts221_remove,
+        .remove = hts221_remove,
 #endif
         .id_table = hts221_id,
 };
