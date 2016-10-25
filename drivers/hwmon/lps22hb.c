@@ -68,6 +68,7 @@
 #include <linux/kernel.h>
 #include <linux/version.h>
 #include <linux/pm.h>
+#include <linux/acpi.h>
 #include <linux/input/lps22hb.h>
 
 #define	PR_ABS_MAX	8388607		/* 24 bit 2'compl */
@@ -2090,11 +2091,18 @@ static const struct i2c_device_id lps22_prs_id[]
 
 MODULE_DEVICE_TABLE(i2c, lps22_prs_id);
 
+static const struct acpi_device_id lps22_acpi_match[] = {
+        { "SMO9210", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, lps22_acpi_match);
+
 static struct i2c_driver lps22_prs_driver = {
 	.driver = {
 			.name = LPS22_PRS_DEV_NAME,
 			.owner = THIS_MODULE,
 			.pm = LPS22_PM_OPS,
+			.acpi_match_table = ACPI_PTR(lps22_acpi_match),
 	},
 	.probe = lps22_prs_probe,
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(3,8,0)
