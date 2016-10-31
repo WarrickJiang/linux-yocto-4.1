@@ -41,7 +41,7 @@ struct owl_wdt {
 	int wd_type;	//0-hard watchdog; 1-soft watchdog
 };
 
-static DEFINE_SPINLOCK(wdt_lock);
+static DEFINE_RAW_SPINLOCK(wdt_lock);
 
 #define TIMER_MARGIN	60		/* Default is 60 seconds */
 static unsigned int owl_margin = TIMER_MARGIN;	/* in seconds */
@@ -85,12 +85,12 @@ static void __owl_wdt_keepalive(struct watchdog_device *wdd)
 	struct owl_wdt *wdt = watchdog_get_drvdata(wdd);
 	unsigned long count;
 
-	spin_lock(&wdt_lock);
+	raw_spin_lock(&wdt_lock);
 	twd_clk_hz = owl_get_periphclk(wdt);
 	count = wdd->timeout * (twd_clk_hz / 256);
 	/* Reload the counter */
 	writel_relaxed(count, wdt->wd_base + TWD_WDOG_LOAD);
-	spin_unlock(&wdt_lock);
+	raw_spin_unlock(&wdt_lock);
 }
 
 static void __owl_wdt_start(struct watchdog_device *wdd)
@@ -196,14 +196,14 @@ static void periph_clk_notify_on_cpu0(struct clk_notifier_data *cnd)
 	unsigned int oldcount;
 	struct owl_wdt *wdt = watchdog_get_drvdata(&owl_wdt_wdd);
 
-	spin_lock(&wdt_lock);
+	raw_spin_lock(&wdt_lock);
 	if(readl_relaxed(wdt->wd_base + TWD_WDOG_CONTROL) & 0x1) {
 		oldcount =  readl_relaxed(wdt->wd_base + TWD_WDOG_COUNTER);
 		newcount = (unsigned long long)oldcount * cnd->new_rate;
 		do_div(newcount, cnd->old_rate);
 		writel_relaxed((unsigned int)newcount, wdt->wd_base + TWD_WDOG_LOAD);
 	}
-	spin_unlock(&wdt_lock);
+	raw_spin_unlock(&wdt_lock);
 }
 
 static int periph_clk_notify(struct notifier_block *nb, unsigned long action, void *data)
