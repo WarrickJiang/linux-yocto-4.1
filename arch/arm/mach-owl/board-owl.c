@@ -143,7 +143,9 @@ extern void owl_powergate_earlyinit(void);
 
 void __init owl_check_revision(void)
 {
-	char *vddr = kmap_atomic(pfn_to_page(PFN_DOWN(0)));
+	const u64 phys_offset = __pa(PAGE_OFFSET);
+
+	char *vddr = kmap_atomic(pfn_to_page(PFN_DOWN(0+phys_offset)));
 	memcpy(&system_serial_low, vddr+0x800, sizeof(system_serial_low));
 	memcpy(&system_serial_high, vddr+0x804, sizeof(system_serial_high));
 	kunmap_atomic(vddr);
