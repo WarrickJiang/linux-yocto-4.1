@@ -27,6 +27,11 @@ config MACH_OWL
 
 endchoice
 
+config OWL_LOAD_OFFSET
+	hex "kernel load address offset"
+	depends on ARCH_OWL
+	default 0x00000000
+
 config OWL_DEBUG_IRQ_STACK
 	boolean "Enable Actions irq stack debugger"
 	depends on ARCH_OWL
