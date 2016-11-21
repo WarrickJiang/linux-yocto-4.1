@@ -1865,6 +1865,11 @@ static int __init acts_mmc_probe(struct platform_device *pdev)
 			pr_err("please choose card detect method\n");
 		}
 	} else if (mmc_card_expected_wifi(host->type_expected)) {
+		struct clk *sd1_clk;
+		sd1_clk = clk_get(NULL, "CMUMOD_SD1");
+		clk_prepare(sd1_clk);
+		clk_enable(sd1_clk);
+
 		mmc->caps &= ~MMC_CAP_NEEDS_POLL;
 		res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 		if (!res) {

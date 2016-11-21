@@ -452,7 +452,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&serial3_state_default>;
 //		actions,enable-dma-rx;
-		status = "disabled";
+		status = "okay";
 	};
 
 	serial@b0128000 {
@@ -986,15 +986,9 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&mmc1_state_default>;
 
-		card_type = "memory";  /* only: "memory", "wifi", or "emmc" */
-		card_detect_mode = "command";  /* only: "sirq", "gpio", or "command" */
-//		card_detect_gpios = <&gpio 125 0>; /*hr280ac GPIOD29 */  
-		interrupts = < 0 43 0x4 >;
+		card_type = "wifi";  /* only: "memory", "wifi", or "emmc" */
 
-		status = "disabled";
-
-		sd_vcc = "switch1";
-//		sdio_uart_supported;
+		status = "okay";
 	};
 
 	mmc@b0238000 {
@@ -1162,7 +1156,10 @@
 	
 	wifi_bt_power_ctl {
 		compatible = "wifi,bt,power,ctl";
-		no_bind_usb_port;
+		wifi_bt_power_gpios = <&gpio 116 0>; /* GPIOD20 */
+		bt_en_gpios = <&gpio 32 0>;/*GPIOB0*/
+		wifi_en_gpios = <&gpio 34 0>; /* GPIOB2 */
+		bt_power_gpio = <&gpio 113 0>; /* GPIOD17 */
 	};
 
 	gsensor_detect {
