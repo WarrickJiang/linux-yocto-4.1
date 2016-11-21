@@ -769,6 +769,19 @@ static int acts_mmc_send_command(struct gl520xmmc_host *host,
 		
 		break;
 
+	case MMC_RSP_R1 & ~MMC_RSP_CRC:
+		if (data) {
+			if (data->flags & MMC_DATA_READ)
+				mode = SD_CTL_TM(4);
+			else
+				mode = SD_CTL_TM(5);
+		} else {
+			mode = SD_CTL_TM(1);
+		}
+		cmd_rsp_mask = 	SD_STATE_CLNR;
+
+		break;
+
 	case MMC_RSP_R1B:
 		mode = SD_CTL_TM(3);
 		cmd_rsp_mask =   SD_STATE_CLNR 
@@ -1734,7 +1747,7 @@ static int __init acts_mmc_probe(struct platform_device *pdev)
 		mmc->caps &= ~MMC_CAP_4_BIT_DATA;
 
 	if (mmc_card_expected_emmc(host->type_expected))
-		mmc->caps |= MMC_CAP_1_8V_DDR | MMC_CAP_UHS_DDR50|MMC_CAP_8_BIT_DATA;
+		mmc->caps |= MMC_CAP_1_8V_DDR;
 	//emmc and sd card support earse (discard,trim,sediscard)
 	if(mmc_card_expected_emmc(host->type_expected)||\
 		mmc_card_expected_mem(host->type_expected)){
