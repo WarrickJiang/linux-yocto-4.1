@@ -1747,7 +1747,7 @@ static int __init acts_mmc_probe(struct platform_device *pdev)
 		mmc->caps &= ~MMC_CAP_4_BIT_DATA;
 
 	if (mmc_card_expected_emmc(host->type_expected))
-		mmc->caps |= MMC_CAP_1_8V_DDR;
+		mmc->caps |= MMC_CAP_8_BIT_DATA;
 	//emmc and sd card support earse (discard,trim,sediscard)
 	if(mmc_card_expected_emmc(host->type_expected)||\
 		mmc_card_expected_mem(host->type_expected)){
