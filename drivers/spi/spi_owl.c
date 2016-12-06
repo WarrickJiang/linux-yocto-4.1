@@ -1213,7 +1213,6 @@ static void asoc_spi_work(struct work_struct *work)
 				udelay(t->delay_usecs);
 
 			if (t->cs_change) {
-				asoc_spi_deactivate_cs(spi);
 				cs_active = 0;
 			}
 			dev_dbg(asoc_spi->dev, "asoc_spi: end one transfer\n");
