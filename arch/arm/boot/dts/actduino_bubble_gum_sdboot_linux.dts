@@ -908,15 +908,10 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi2_state_default>;
 		status = "okay";
-		m25p80@0 {
-			#address-cells = <1>;
-			#size-cells = <1>;
-			compatible = "winbond,w25q32";
-			spi-cpha = <1>;
-			spi-cpol = <1>;
-			spi-max-frequency = <40000000>;
+		st33tphf2espi@0 {
+			compatible = "st,st33htpm-spi";
+			spi-max-frequency = <10000000>;
 			reg = <0>;
-			m25p,fast-read;
 		};
 	};
 
