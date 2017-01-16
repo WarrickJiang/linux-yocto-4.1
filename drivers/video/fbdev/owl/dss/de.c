@@ -912,6 +912,8 @@ static int __init owl_de_probe(struct platform_device *pdev) {
 		return -EINVAL;
 	}
 
+	spin_lock_init(&de_pdata->irq_lock);
+
 	/* set de hw id */
 	if (strcmp(match->compatible, "actions,atm7059tc-de") == 0)
 		de_pdata->id = DE_HW_ID_ATM7059TC;
