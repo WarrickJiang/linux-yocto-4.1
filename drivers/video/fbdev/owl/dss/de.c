@@ -263,18 +263,18 @@ static int de_irq_init(void)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&de_pdata->irq_lock, flags);
-
-	memset(de_pdata->registered_isr, 0, sizeof(de_pdata->registered_isr));
-	
-	de_set_irqs();
-	
 	/* TODO */
 	if (request_irq(OWL_IRQ_DE, de_irq_handler , 0, "asoc_de", NULL) != 0) {
 		DSSERR("DE request interrupt %d failed\n", OWL_IRQ_DE);
 		return -EBUSY;
 	}
 	de_pdata->irq = OWL_IRQ_DE;
+
+	spin_lock_irqsave(&de_pdata->irq_lock, flags);
+
+	memset(de_pdata->registered_isr, 0, sizeof(de_pdata->registered_isr));
+
+	de_set_irqs();
 
 	DSSINFO("de irq init ok\n");
 	spin_unlock_irqrestore(&de_pdata->irq_lock, flags);
