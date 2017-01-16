@@ -117,6 +117,9 @@ void aotg_output_current_ep_status(struct seq_file *m)
 	struct aotg_udc *udc;
 	int i;
 
+	if(acts_udc_controller == NULL)
+		return;
+
 	printk("%s %d\n",__func__,__LINE__);
 	for (i = 0; i < AOTG_UDC_NUM_ENDPOINTS; i++) {
 		ep = &acts_udc_controller->ep[i];
