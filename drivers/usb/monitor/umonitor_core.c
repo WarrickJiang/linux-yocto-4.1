@@ -734,16 +734,14 @@ void umonitor_timer_func(void)
 		ret = usb_timer_det_udisk(pStatus);
 		status = pStatus->message_status & (0x1 << MONITOR_A_IN);
 		if ((status != 0) && (ret == USB_DET_HOST_NONE)) {
-			//MONITOR_PRINTK("\n%s--%d, SYS_MSG_USB_A_OUT\n", __FILE__, __LINE__);
-			printk("\n%s--%d, SYS_MSG_USB_A_OUT\n", __FILE__, __LINE__);
+			MONITOR_PRINTK("\n%s--%d, SYS_MSG_USB_A_OUT\n", __FILE__, __LINE__);
 			pStatus->core_ops->putt_msg(MON_MSG_USB_A_OUT);
 			pStatus->message_status = pStatus->message_status & (~(0x1 << MONITOR_A_IN));
 			goto out;
 		}
 		if (ret == USB_DET_HOST_UDISK) {
 			p_hal->set_mode(p_hal, USB_IN_HOST_MOD);
-			//MONITOR_PRINTK("\n%s--%d, SYS_MSG_USB_A_IN\n", __FILE__, __LINE__);
-			printk("\n%s--%d, SYS_MSG_USB_A_IN\n", __FILE__, __LINE__);
+			MONITOR_PRINTK("\n%s--%d, SYS_MSG_USB_A_IN\n", __FILE__, __LINE__);
 			pStatus->core_ops->putt_msg(MON_MSG_USB_A_IN);
 			pStatus->message_status |= 0x1 << MONITOR_A_IN;
 
