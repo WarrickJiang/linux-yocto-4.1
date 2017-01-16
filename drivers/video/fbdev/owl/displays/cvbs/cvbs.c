@@ -78,7 +78,6 @@ struct cvbs_info cvbs;
 static bool first_status = false;
 static bool first_hpt = true;
 atomic_t cvbs_connected_state = ATOMIC_INIT(0);
-static DEFINE_MUTEX(cvbs_setting_mutex);
 
 static struct work_struct cvbs_in_work;
 static struct work_struct cvbs_out_work;

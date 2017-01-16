@@ -103,7 +103,6 @@ typedef struct{
 }vce_info_t;
 
 static DEFINE_MUTEX(vce_ioctl_mutex);
-static DEFINE_MUTEX(vce_reset_mutex);
 static struct completion vce_complete;
 static int vce_status = 0;
 static int vce_irq_registered = 0;
