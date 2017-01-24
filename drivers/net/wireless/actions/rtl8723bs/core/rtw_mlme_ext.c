@@ -3246,11 +3246,13 @@ unsigned int OnAction_back(_adapter *padapter, union recv_frame *precv_frame)
 #ifdef CONFIG_WFD//start, add by rtk, game miracast for only MI2
 				peer_ampdu_num = frame_body[6] ;
 				peer_ampdu_num = ((peer_ampdu_num << 2) & 0xfc) | ((frame_body[5] >> 6) & 0x2) ;
-				if ((is_miracast_enabled(padapter->wfd_info.stack_wfd_mode)) 
 #ifdef CONFIG_CONCURRENT_MODE
-				|| (padapter->pbuddy_adapter && is_miracast_enabled(padapter->pbuddy_adapter->wfd_info.stack_wfd_mode))
-#endif
+				if (((is_miracast_enabled(padapter->wfd_info.stack_wfd_mode))
+				|| (padapter->pbuddy_adapter && is_miracast_enabled(padapter->pbuddy_adapter->wfd_info.stack_wfd_mode)))
 				&& (peer_ampdu_num == 0x8)) {
+#else
+				if ((is_miracast_enabled(padapter->wfd_info.stack_wfd_mode)) && (peer_ampdu_num == 0x8)) {
+#endif
 					AMPDU_PARM_EVT ampdu_parm ; 
 
 					ampdu_parm.max_AMPDU_num = peer_ampdu_num ; 
