@@ -1043,6 +1043,6 @@ int rtw_sdio_set_power(int on)
 }
 #endif //CONFIG_PLATFORM_INTEL_BYT
 
-module_init(rtw_drv_entry);
+late_initcall(rtw_drv_entry);
 module_exit(rtw_drv_halt);
 
