@@ -155,7 +155,7 @@ static int atc260x_rtc_settime(struct device *dev, struct rtc_time *tm)
 	struct atc260x_dev *atc260x = atc260x_rtc->atc260x;
 	int ret, century, year;
 
-	dev_info(dev, "%s(): %4d-%02d-%02d %02d:%02d:%02d\n", __FUNCTION__,
+	dev_dbg(dev, "%s(): %4d-%02d-%02d %02d:%02d:%02d\n", __FUNCTION__,
 		1900 + tm->tm_year, tm->tm_mon + 1, tm->tm_mday,
 		tm->tm_hour, tm->tm_min, tm->tm_sec);
 
