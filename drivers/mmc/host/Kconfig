@@ -492,6 +492,12 @@ config MMC_OWL
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called CONFIG_MMC_OWL.
+
+config MMC_OWL_EVT_WORKROUND
+	bool "Workround for EVT board"
+	depends on MMC_OWL
+	default n
+
 config MMC_S3C
 	tristate "Samsung S3C SD/MMC Card Interface support"
 	depends on ARCH_S3C24XX

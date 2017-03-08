@@ -373,7 +373,12 @@ static unsigned mmc_sdio_get_max_clock(struct mmc_card *card)
 		 * high-speed, but it seems that 50 MHz is
 		 * mandatory.
 		 */
+#ifndef CONFIG_MMC_OWL_EVT_WORKROUND
 		max_dtr = 50000000;
+#else
+		max_dtr = 25000000;
+#endif
+
 	} else {
 		max_dtr = card->cis.max_dtr;
 	}
