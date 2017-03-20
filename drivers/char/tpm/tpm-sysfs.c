@@ -264,7 +264,7 @@ static ssize_t timeouts_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(timeouts);
 
-static struct attribute *tpm_dev_attrs[] = {
+static struct attribute *tpm1_dev_attrs[] = {
 	&dev_attr_pubek.attr,
 	&dev_attr_pcrs.attr,
 	&dev_attr_enabled.attr,
@@ -278,6 +278,42 @@ static struct attribute *tpm_dev_attrs[] = {
 	NULL,
 };
 
+static const struct attribute_group tpm1_dev_group = {
+	.attrs = tpm1_dev_attrs,
+};
+
+void tpm1_sysfs_add_device(struct tpm_chip *chip)
+{
+	/* The sysfs routines rely on an implicit tpm_try_get_ops, device_del
+	 * is called before ops is null'd and the sysfs core synchronizes this
+	 * removal so that no callbacks are running or can run again
+	 */
+	WARN_ON(chip->groups_cnt != 0);
+	chip->groups[chip->groups_cnt++] = &tpm1_dev_group;
+}
+
+static ssize_t family_major_show(struct device *dev, struct device_attribute *attr,
+			      char *buf)
+{
+	int ret;
+	struct tpm_chip *chip = to_tpm_chip(dev);
+
+	if (chip->flags & TPM_CHIP_FLAG_TPM2)
+		ret = sprintf(buf, "2");
+	else
+		ret = sprintf(buf, "1");
+
+	return ret;
+}
+
+static DEVICE_ATTR_RO(family_major);
+
+
+static struct attribute *tpm_dev_attrs[] = {
+	&dev_attr_family_major.attr,
+	NULL,
+};
+
 static const struct attribute_group tpm_dev_group = {
 	.attrs = tpm_dev_attrs,
 };
@@ -288,6 +324,5 @@ void tpm_sysfs_add_device(struct tpm_chip *chip)
 	 * is called before ops is null'd and the sysfs core synchronizes this
 	 * removal so that no callbacks are running or can run again
 	 */
-	WARN_ON(chip->groups_cnt != 0);
 	chip->groups[chip->groups_cnt++] = &tpm_dev_group;
 }
