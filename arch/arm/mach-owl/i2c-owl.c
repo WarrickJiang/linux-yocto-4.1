@@ -1250,7 +1250,6 @@ static int owl_i2c_set_clk_tree(struct platform_device *pdev)
 			goto round_rate_failed;
 		clk_prepare(dev->i2c_clk);
 		clk_enable(dev->i2c_clk);
-		clk_put(dev->i2c_clk);
 		module_clk_enable(MOD_ID_I2C0);
 		break;
 
@@ -1263,7 +1262,6 @@ static int owl_i2c_set_clk_tree(struct platform_device *pdev)
 			goto round_rate_failed;
 		clk_prepare(dev->i2c_clk);
 		clk_enable(dev->i2c_clk);
-		clk_put(dev->i2c_clk);
 		module_clk_enable(MOD_ID_I2C1);
 		break;
 
@@ -1276,7 +1274,6 @@ static int owl_i2c_set_clk_tree(struct platform_device *pdev)
 			goto round_rate_failed;
 		clk_prepare(dev->i2c_clk);
 		clk_enable(dev->i2c_clk);
-		clk_put(dev->i2c_clk);
 		module_clk_enable(MOD_ID_I2C2);
 		break;
 
@@ -1289,7 +1286,6 @@ static int owl_i2c_set_clk_tree(struct platform_device *pdev)
 			goto round_rate_failed;
 		clk_prepare(dev->i2c_clk);
 		clk_enable(dev->i2c_clk);
-		clk_put(dev->i2c_clk);
 		module_clk_enable(MOD_ID_I2C3);
 		break;
 
