@@ -3055,7 +3055,7 @@ static struct platform_driver atc260x_gauge_driver = {
 static int __init atc260x_gauge_init(void)
 {
 	GAUGE_INFO("========This is a new reconstructed gauge by actions==========\n");
-	GAUGE_INFO("[%s] drv name:%s, drv version:%s\n", __func__, THIS_MODULE->name, THIS_MODULE->version);
+	GAUGE_INFO("[%s] drv name:%s, drv version:%s\n", __func__, "atc260x-cap-gauge", "Actions-v1-20150720151405");
 	return platform_driver_register(&atc260x_gauge_driver);
 }
 module_init(atc260x_gauge_init);
