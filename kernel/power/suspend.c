@@ -539,3 +539,14 @@ int pm_suspend(suspend_state_t state)
 	return error;
 }
 EXPORT_SYMBOL(pm_suspend);
+
+#ifdef CONFIG_EARLYSUSPEND
+int pm_earlysuspend(suspend_state_t state)
+{
+       if (state == PM_SUSPEND_ON || valid_state(state))
+               request_suspend_state(state);
+
+       return 0;
+}
+EXPORT_SYMBOL(pm_earlysuspend);
+#endif

@@ -668,9 +668,6 @@ int hibernate(void)
 
 	printk(KERN_INFO "PM: Syncing filesystems ... ");
 	sys_sync();
-#ifdef CONFIG_MACH_OWL	
-	fs_drop_page_caches();
-#endif
 	printk("done.\n");
 
 	error = freeze_processes();

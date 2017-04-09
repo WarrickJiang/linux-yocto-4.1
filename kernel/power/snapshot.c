@@ -43,16 +43,6 @@ static int swsusp_page_is_free(struct page *);
 static void swsusp_set_page_forbidden(struct page *);
 static void swsusp_unset_page_forbidden(struct page *);
 
-int pfn_is_nosave(unsigned long pfn)
-{
-	unsigned long nosave_begin_pfn =
-			__pa(__nosave_begin) >> PAGE_SHIFT;
-	unsigned long nosave_end_pfn =
-			PAGE_ALIGN(__pa(__nosave_end)) >> PAGE_SHIFT;
-
-	return ((pfn >= nosave_begin_pfn) && (pfn < nosave_end_pfn));
-}
-
 /*
  * Number of bytes to reserve for memory allocations made by device drivers
  * from their ->freeze() and ->freeze_noirq() callbacks so that they don't
@@ -1925,10 +1915,6 @@ static int init_header(struct swsusp_info *info)
 	info->pages = snapshot_get_image_size();
 	info->size = info->pages;
 	info->size <<= PAGE_SHIFT;
-	info->nosave_begin = (unsigned long)__nosave_begin;
-	info->nosave_end = (unsigned long)__nosave_end;
-	info->swsusp_arch_resume_begin = virt_to_phys(swsusp_arch_resume);
-	info->cpu_reset_begin = virt_to_phys(cpu_v7_reset);
 	return init_header_complete(info);
 }
 

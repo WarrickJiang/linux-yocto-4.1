@@ -11,7 +11,6 @@ obj-$(CONFIG_GPIO_OWL) += gpio-owl.o
 obj-$(CONFIG_PINCTRL_OWL) += pinctrl-owl.o pinctrl_common-owl.o pinctrl_data-atm7059.o
 obj-$(CONFIG_SMP) += platsmp-owl.o headsmp-owl.o hotplug_base-owl.o 
 obj-$(CONFIG_ACTIONS_SOC_CAMERA) += isp_pwd-owl.o
-obj-$(CONFIG_HIBERNATION) += swsusp-owl.o processor-owl.o
 obj-$(CONFIG_PM) += pm-owl.o sleep-owl.o
 obj-$(CONFIG_HOTPLUG_OWL) += hotplug-owl.o
 

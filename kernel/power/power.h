@@ -12,10 +12,6 @@ struct swsusp_info {
 	unsigned long		image_pages;
 	unsigned long		pages;
 	unsigned long		size;
-	unsigned long		nosave_begin;
-	unsigned long		nosave_end;
-	unsigned long		swsusp_arch_resume_begin;
-	unsigned long		cpu_reset_begin;
 } __aligned(PAGE_SIZE);
 
 #ifdef CONFIG_HIBERNATION
