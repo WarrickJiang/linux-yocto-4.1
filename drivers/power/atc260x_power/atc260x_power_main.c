@@ -2922,7 +2922,7 @@ static int __init atc260x_power_init(void)
 	log_event_init();
 	return platform_driver_register(&atc260x_power_driver);
 }
-late_initcall(atc260x_power_init);
+module_init(atc260x_power_init);
 
 static void __exit atc260x_power_exit(void)
 {
