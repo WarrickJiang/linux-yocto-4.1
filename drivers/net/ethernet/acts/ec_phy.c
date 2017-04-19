@@ -408,6 +408,9 @@ static int phy_init(ec_priv_t * ecp)
 		/*As datasheet says tx&rx offset's default value is 0xF but be zero in fact.Reset them*/
 		write_phy_reg(ecp, PHY_RTL8201F_REG_RMSR, 
 			PHY_RTL8201F_RMSR_CLK_DIR_INPUT | PHY_RTL8201F_RMSR_RMII_MODE|PHY_RTL8201F_RMSR_RMII_RX_OFFSET|PHY_RTL8201F_RMSR_RMII_TX_OFFSET);
+		/*Enable phy customized led and set link and active bits*/
+		phy_reg_set_bits(ecp, PHY_RTL8201F_REG_INT_LED_FUNC, PHY_RTL8201F_CUSTOMIZED_LED_ENABLE);
+		phy_reg_set_bits(ecp, PHY_RTL8201F_REG_CUSTOMIZED_LED, PHY_RTL8201F_CUSTOMIZED_LINK_LED0_ACT|PHY_RTL8201F_CUSTOMIZED_LINK_LED1_100M);
 		write_phy_reg(ecp, PHY_RTL8201F_REG_PAGE_SELECT, PHY_RTL8201F_REG_PAGE_SELECT_ZERO);
 	} else if (ecp->phy_model == ETH_PHY_MODEL_SR8201G) {
 		write_phy_reg(ecp, PHY_SR8201G_REG_PAGE_SELECT, PHY_SR8201G_REG_PAGE_SELECT_SEVEN);
