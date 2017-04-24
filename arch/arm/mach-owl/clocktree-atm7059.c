@@ -2732,6 +2732,11 @@ void atm7059_init_clocktree(struct device_node *cum_node)
 			if (i == CLOCK__PRESD1_CLK)
 				clocks[i].divider = clocks[CLOCK__PRESD0_CLK].divider;
 
+			if (i == CLOCK__UART0_CLK) {
+				clocks[i].divsel = read_clkreg_val(clocks[CLOCK__UART2_CLK].actdiv->reg);
+				clocks[i].divider = getdivider(clocks[i].actdiv, clocks[i].divsel);
+			}
+
 			if (i == CLOCK__UART3_CLK)
 				clocks[i].divider = clocks[CLOCK__UART2_CLK].divider;
 
