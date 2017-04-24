@@ -363,6 +363,13 @@
 			};
 		};	
 
+		spi0_state_tc1101: spi0_tc1101 {
+			spi0_mfp {
+				actions,groups = "mfp1_9_7", "mfp1_20_19", "mfp1_18_17";
+				actions,function = "spi0";
+			};
+		};
+
 		spi2_state_default: spi2_default {
 			spi2_mfp {
 				actions,groups = "mfp3_2";
@@ -889,7 +896,14 @@
 	};
 
 	spi@b0200000 {
-		status = "disabled";
+		status = "okay";
+		pinctrl-names = "default";
+		pinctrl-0 = <&spi0_state_tc1101>;
+		rf: tc1101@0 {
+			compatible = "rohm,dh2228fv";
+			reg = <0>;
+			spi-max-frequency = <10000000>;
+		};
 	};
 
 	spi@b0204000 {
