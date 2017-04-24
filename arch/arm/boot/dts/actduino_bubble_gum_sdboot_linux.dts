@@ -434,7 +434,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&serial0_state_default>;
 //		actions,enable-dma-rx;
-		status = "disabled";
+		status = "okay";
 	};
 
 	serial@b0122000 {
