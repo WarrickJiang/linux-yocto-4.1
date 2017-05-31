@@ -1366,6 +1366,8 @@ static void atc260x_charger_adjust_current(struct atc260x_charger *charger)
 		if (charger->charger_cur_status & WALL_PLUGED) 
 		{
 			set_current = atc260x_get_future_current(charger, WALL_PLUGED);
+			//ori=4;set_current=0x8, current_binary=0x6->0110: ICHG_REG_CC=800mA
+			set_current = set_current + 4;
 		}
 		else if (charger->charger_cur_status & USB_PLUGED)
 		{
