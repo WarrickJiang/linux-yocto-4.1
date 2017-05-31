@@ -297,6 +297,12 @@ static int owl_gpio_irq_set_type(struct irq_data *d, unsigned int flow_type)
 	return 0;
 }
 
+struct owl_gpio_bank {
+	int irq;
+};
+
+static struct owl_gpio_bank owl_gpio_banks[OWL_GPIO_BANKS];
+
 /*
  * When the summary IRQ is raised, any number of GPIO lines may be high.
  * It is the job of the summary handler to find all those GPIO lines
@@ -312,7 +318,7 @@ static void owl_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 
 	gpioctl = act_readl(INTC_GPIOCTL);
 
-	bank = irq - OWL_IRQ_GPIOA;
+	bank = irq - owl_gpio_banks[0].irq;
 
 	if (bank >= 0 && bank < 5) {
 		if (gpioctl & (1 << ((bank * 5)))) {
@@ -339,13 +345,6 @@ static struct irq_chip owl_gpio_irq_chip = {
 	.irq_ack        = owl_gpio_irq_ack,
 	.irq_set_type   = owl_gpio_irq_set_type,
 };
-
-struct owl_gpio_bank {
-	int irq;
-};
-
-static struct owl_gpio_bank owl_gpio_banks[OWL_GPIO_BANKS];
-
 
 static struct of_device_id owl_gpio_of_match[] = {
 	{ .compatible = "actions,atm7039c-gpio"},
